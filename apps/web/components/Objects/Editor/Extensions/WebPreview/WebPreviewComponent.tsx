@@ -23,8 +23,9 @@ const WebPreviewComponent: React.FC<WebPreviewProps> = ({ node, updateAttributes
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(!node.attrs.url);
   const inputRef = useRef<HTMLInputElement>(null);
-  const editorState = useEditorProvider && useEditorProvider();
-  let isEditable = true;
+  // const editorState = useEditorProvider && useEditorProvider(); // This breaks the rule of hooks, fix below
+  const editorState = useEditorProvider?.() ?? null;
+let isEditable = true;
   if (editorState) {
     isEditable = (editorState as any).isEditable;
   }
