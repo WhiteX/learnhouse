@@ -1,0 +1,73 @@
+# Base image
+FROM python:3.12.3-slim-bookworm as base
+
+# Install Nginx, curl, and build-essential
+RUN apt update && apt install -y nginx curl build-essential \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm /etc/nginx/sites-enabled/default
+
+# Install Node tools
+RUN curl -fsSL https://deb.nodesource.com/setup_21.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g corepack pm2
+
+# Frontend Build
+FROM base AS deps
+
+ARG NEXT_PUBLIC_LEARNHOUSE_API_URL
+ARG NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL
+ARG NEXT_PUBLIC_LEARNHOUSE_DOMAIN
+
+ENV NEXT_PUBLIC_LEARNHOUSE_API_URL=${NEXT_PUBLIC_LEARNHOUSE_API_URL}
+ENV NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL=${NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL}
+ENV NEXT_PUBLIC_LEARNHOUSE_DOMAIN=${NEXT_PUBLIC_LEARNHOUSE_DOMAIN}
+
+WORKDIR /app/web
+COPY ./apps/web/package.json ./apps/web/pnpm-lock.yaml* ./
+COPY ./apps/web /app/web
+RUN rm -f .env* 
+RUN if [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile && pnpm run build; \
+    else echo "Lockfile not found." && exit 1; \
+    fi
+
+# Final image
+FROM base as runner 
+RUN addgroup --system --gid 1001 system \
+    && adduser --system --uid 1001 app \
+    && mkdir .next \
+    && chown app:system .next
+COPY --from=deps /app/web/public ./app/web/public
+COPY --from=deps --chown=app:system /app/web/.next/standalone ./app/web/
+COPY --from=deps --chown=app:system /app/web/.next/static ./app/web/.next/static
+
+# Backend Build
+WORKDIR /app/api
+COPY ./apps/api/pyproject.toml ./
+COPY ./apps/api/uv.lock ./
+
+# Install dependencies with proper flags and fallback to pip if needed
+RUN pip install --upgrade pip && \
+    pip install uv && \
+    (uv pip sync --system --python=python3.12 || pip install -e .) && \
+    pip install uvicorn  # Ensure at least the ASGI server is available
+
+COPY ./apps/api ./
+
+# Run the backend
+WORKDIR /app
+COPY ./extra/nginx.conf /etc/nginx/conf.d/default.conf
+ENV PORT=8000 LEARNHOUSE_PORT=9000 HOSTNAME=0.0.0.0
+COPY ./extra/start.sh /app/start.sh
+
+# Add near the end of your Dockerfile_coolify
+RUN echo '#!/bin/bash\n\
+echo "Enhanced patching of NextAuth cookies..."\n\
+find /app/web/.next -type f -name "*.js" -exec sed -i "s/domain:[^,}]*,/domain: undefined,/g" {} \\;\n\
+find /app/web/.next -type f -name "*.js" -exec sed -i "s/domain: *process.env.LEARNHOUSE_COOKIE_DOMAIN/domain: undefined/g" {} \\;\n\
+find /app/web/.next -type f -name "*.js" -exec sed -i "s/\.domain\s*=\s*[^;]*;/\.domain = undefined;/g" {} \\;\n\
+echo "Patch complete."\n\
+sh /app/start.sh' > /app/patched-start.sh && chmod +x /app/patched-start.sh
+
+# Use the patched start script
+CMD ["/app/patched-start.sh"]
