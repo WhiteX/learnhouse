@@ -42,10 +42,13 @@ services:
       retries: 10
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.learnhouse.rule=Host(`${LEARNHOUSE_DOMAIN}`)"
-      - "traefik.http.routers.learnhouse.entrypoints=websecure"
-      - "traefik.http.services.learnhouse.loadbalancer.server.port=80"
-      - "traefik.http.routers.learnhouse.tls=true"
+      - "traefik.http.routers.${DEPLOYMENT_NAME:-learnhouse}.rule=Host(`${LEARNHOUSE_DOMAIN}`)"
+      - "traefik.http.routers.${DEPLOYMENT_NAME:-learnhouse}.entrypoints=websecure"
+      - "traefik.http.services.${DEPLOYMENT_NAME:-learnhouse}.loadbalancer.server.port=80"
+      - "traefik.http.routers.${DEPLOYMENT_NAME:-learnhouse}.tls=true"
+    networks:
+      - ${DEPLOYMENT_NAME:-learnhouse}-network
+      - traefik
 
   db:
     image: postgres:16-alpine
@@ -63,6 +66,8 @@ services:
       interval: 5s
       timeout: 4s
       retries: 5
+    networks:
+      - ${DEPLOYMENT_NAME:-learnhouse}-network
 
   redis:
     image: redis:7.2.3
@@ -81,6 +86,8 @@ services:
       interval: 5s
       timeout: 4s
       retries: 5
+    networks:
+      - ${DEPLOYMENT_NAME:-learnhouse}-network
 
   chromadb:
     image: chromadb/chroma:0.5.16
@@ -92,6 +99,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - ${DEPLOYMENT_NAME:-learnhouse}-network
 
 volumes:
   postgres-data:
@@ -99,6 +108,9 @@ volumes:
   app-uploads:
 
 networks:
-  default:
+  ${DEPLOYMENT_NAME:-learnhouse}-network:
+    name: ${DEPLOYMENT_NAME:-learnhouse}-network
+    driver: bridge
+  traefik:
     name: traefik
     external: true
