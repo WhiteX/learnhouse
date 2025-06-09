@@ -47,7 +47,6 @@ services:
       - "traefik.http.routers.${DEPLOYMENT_NAME:-learnhouse}.tls=true"
     networks:
       - backend
-      - traefik
 
   db:
     image: postgres:16-alpine
@@ -110,6 +109,3 @@ networks:
   backend:
     name: ${DEPLOYMENT_NAME:-learnhouse}-network
     driver: bridge
-  traefik:
-    name: traefik
-    external: true
