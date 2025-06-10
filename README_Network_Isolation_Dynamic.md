@@ -2,6 +2,8 @@
 
 This setup provides complete network isolation between your DEV and LIVE LearnHouse deployments using a single dynamic Docker Compose file and environment variables.
 
+> ⚠️ **NOTE**: This document uses example placeholder domains. Replace all example values with your actual domains before deployment. See [`COOLIFY_ENV_VARS.md`](COOLIFY_ENV_VARS.md) for a complete list of environment variables.
+
 ## Single Dynamic Compose File
 
 - `docker-compose-coolify.yml` - Works for both DEV and LIVE deployments using environment variables
@@ -21,29 +23,29 @@ The compose file uses `${DEPLOYMENT_NAME:-learnhouse}` patterns to create:
 
 ## Coolify Deployment Instructions
 
-### For DEV Environment (adr-lms.whitex.cloud)
+### For DEV Environment
 
 1. In Coolify, create a new resource/service
 2. Use the standard `docker-compose-coolify.yml` file
 3. Set these **key environment variables**:
    ```
    DEPLOYMENT_NAME=dev
-   LEARNHOUSE_DOMAIN=adr-lms.whitex.cloud
-   LEARNHOUSE_COOKIE_DOMAIN=adr-lms.whitex.cloud
-   NEXTAUTH_URL=https://adr-lms.whitex.cloud
+   LEARNHOUSE_DOMAIN=your-dev-domain.example.com
+   LEARNHOUSE_COOKIE_DOMAIN=your-dev-domain.example.com
+   NEXTAUTH_URL=https://your-dev-domain.example.com
    # ... your other DEV environment variables
    ```
 
-### For LIVE Environment (edu.adradviser.ro)
+### For LIVE Environment
 
 1. In Coolify, create a new resource/service  
 2. Use the same `docker-compose-coolify.yml` file
 3. Set these **key environment variables**:
    ```
    DEPLOYMENT_NAME=live
-   LEARNHOUSE_DOMAIN=edu.adradviser.ro
-   LEARNHOUSE_COOKIE_DOMAIN=edu.adradviser.ro
-   NEXTAUTH_URL=https://edu.adradviser.ro
+   LEARNHOUSE_DOMAIN=your-prod-domain.example.com
+   LEARNHOUSE_COOKIE_DOMAIN=your-prod-domain.example.com
+   NEXTAUTH_URL=https://your-prod-domain.example.com
    # ... your other LIVE environment variables
    ```
 
@@ -83,16 +85,16 @@ After deployment, verify isolation:
    ```
 
 3. **Test cookie domains** in browser DevTools:
-   - DEV cookies: domain `adr-lms.whitex.cloud`
-   - LIVE cookies: domain `edu.adradviser.ro`
+   - DEV cookies: domain `your-dev-domain.example.com`
+   - LIVE cookies: domain `your-prod-domain.example.com`
 
 ## Adding New Environments
 
 To add a staging environment:
 ```
 DEPLOYMENT_NAME=staging
-LEARNHOUSE_DOMAIN=staging.example.com
-LEARNHOUSE_COOKIE_DOMAIN=staging.example.com
+LEARNHOUSE_DOMAIN=your-staging-domain.example.com
+LEARNHOUSE_COOKIE_DOMAIN=your-staging-domain.example.com
 ```
 
 This automatically creates `staging-network` and Coolify handles volume isolation.

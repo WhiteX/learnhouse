@@ -25,7 +25,7 @@ This document provides instructions for deploying LearnHouse using Coolify, ensu
 
 ### 3. Configure Domain Settings
 
-- Add your domain (e.g., `learnhouse.example.com`) in the resource settings
+- Add your domain (e.g., `learnhouse.com`) in the resource settings
 - Enable HTTPS if needed (recommended for production)
 - Configure any necessary redirects
 
@@ -42,18 +42,18 @@ LEARNHOUSE_SSL=true
 LEARNHOUSE_CONTACT_EMAIL=contact@example.com
 
 # Domain Configuration
-NEXT_PUBLIC_LEARNHOUSE_DOMAIN=learnhouse.example.com
-LEARNHOUSE_COOKIE_DOMAIN=learnhouse.example.com
-NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN=learnhouse.example.com
+NEXT_PUBLIC_LEARNHOUSE_DOMAIN=learnhouse.com
+LEARNHOUSE_COOKIE_DOMAIN=learnhouse.com
+NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN=learnhouse.com
 
 # Authentication
 NEXTAUTH_SECRET=your_generated_secret_key
-NEXTAUTH_URL=https://learnhouse.example.com
+NEXTAUTH_URL=https://learnhouse.com
 
 # API URLs
-NEXT_PUBLIC_API_URL=https://learnhouse.example.com/api/v1/
-NEXT_PUBLIC_LEARNHOUSE_API_URL=https://learnhouse.example.com/api/v1/
-NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL=https://learnhouse.example.com/
+NEXT_PUBLIC_API_URL=https://learnhouse.com/api/v1/
+NEXT_PUBLIC_LEARNHOUSE_API_URL=https://learnhouse.com/api/v1/
+NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL=https://learnhouse.com/
 
 # Organization Settings
 NEXT_PUBLIC_LEARNHOUSE_MULTI_ORG=false

@@ -1,65 +1,79 @@
 # Environment Variables for Coolify Deployments
 
-## DEV Environment (adr-lms.whitex.cloud)
+> ⚠️ **SECURITY NOTE**: This file contains placeholder values only. Replace ALL `YOUR_*` placeholders with your actual secure values before deployment. Never commit actual secrets to version control.
+
+## Placeholder Values to Replace:
+- `YOUR_DEV_REDIS_PASSWORD` - Strong password for development Redis instance
+- `YOUR_LIVE_REDIS_PASSWORD` - Strong password for production Redis instance  
+- `YOUR_DEV_DB_PASSWORD` - Strong password for development database
+- `YOUR_LIVE_DB_PASSWORD` - Strong password for production database
+- `YOUR_DEV_NEXTAUTH_SECRET` - Cryptographically secure random string for dev auth
+- `YOUR_LIVE_NEXTAUTH_SECRET` - Cryptographically secure random string for production auth
+- `YOUR_RESEND_API_KEY` - Your actual Resend API key for email delivery
+- `your-dev-domain.com` - Your development domain name
+- `your-prod-domain.com` - Your production domain name
+- `contact@.com` - Your organization contact email
+
+## DEV Environment
 ```
 DEPLOYMENT_NAME=dev
-LEARNHOUSE_DOMAIN=adr-lms.whitex.cloud
-LEARNHOUSE_COOKIE_DOMAIN=adr-lms.whitex.cloud
-LEARNHOUSE_CONTACT_EMAIL=adr-lm@whitex.cloud
+LEARNHOUSE_DOMAIN=your-dev-domain.com
+LEARNHOUSE_COOKIE_DOMAIN=your-dev-domain.com
+LEARNHOUSE_CONTACT_EMAIL=contact@.com
 LEARNHOUSE_EMAIL_PROVIDER=resend
 LEARNHOUSE_IS_AI_ENABLED=false
-LEARNHOUSE_REDIS_CONNECTION_STRING=redis://default:CfhIfLu2c1VEEpGmhs80NUUvUMzyCq1lmzBZmFJDdrs@redis:6379/1
-LEARNHOUSE_RESEND_API_KEY=re_LenY3zNh_S5ShneCyS3Pbf6HX75Yt8jet
+LEARNHOUSE_REDIS_CONNECTION_STRING=redis://default:YOUR_DEV_REDIS_PASSWORD@redis:6379/1
+LEARNHOUSE_RESEND_API_KEY=YOUR_RESEND_API_KEY
 LEARNHOUSE_SELF_HOSTED=true
 LEARNHOUSE_SITE_DESCRIPTION=ADR LMS is platform tailored for learning experiences.
 LEARNHOUSE_SITE_NAME=ADR LMS
-LEARNHOUSE_SQL_CONNECTION_STRING=postgresql://learnhouse_dev:Yvvxnnf1+qr6r+6d92NvbaXWeGuRqmsroFdildw9ez4@db:5432/learnhouse_dev
+LEARNHOUSE_SQL_CONNECTION_STRING=postgresql://learnhouse_dev:YOUR_DEV_DB_PASSWORD@db:5432/learnhouse_dev
 LEARNHOUSE_SSL=true
-LEARNHOUSE_SYSTEM_EMAIL_ADDRESS=adr-lms@whitex.cloud
-NEXTAUTH_SECRET=FokIexhXga0KpAF06a7ADqt0HIJf8n9XJeRptZctDG0
-NEXTAUTH_URL=https://adr-lms.whitex.cloud
-NEXT_PUBLIC_API_URL=https://adr-lms.whitex.cloud/api/v1/
-NEXT_PUBLIC_LEARNHOUSE_API_URL=https://adr-lms.whitex.cloud/api/v1/
-NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL=https://adr-lms.whitex.cloud/
+LEARNHOUSE_SYSTEM_EMAIL_ADDRESS=contact@.com
+NEXTAUTH_SECRET=YOUR_DEV_NEXTAUTH_SECRET
+NEXTAUTH_URL=https://your-dev-domain.com
+NEXT_PUBLIC_API_URL=https://your-dev-domain.com/api/v1/
+NEXT_PUBLIC_LEARNHOUSE_API_URL=https://your-dev-domain.com/api/v1/
+NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL=https://your-dev-domain.com/
 NEXT_PUBLIC_LEARNHOUSE_DEFAULT_ORG=default
-NEXT_PUBLIC_LEARNHOUSE_DOMAIN=adr-lms.whitex.cloud
+NEXT_PUBLIC_LEARNHOUSE_DOMAIN=your-dev-domain.com
 NEXT_PUBLIC_LEARNHOUSE_MULTI_ORG=false
-NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN=adr-lms.whitex.cloud
+NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN=your-dev-domain.com
 POSTGRES_DB=learnhouse_dev
-POSTGRES_PASSWORD=Yvvxnnf1+qr6r+6d92NvbaXWeGuRqmsroFdildw9ez4
+POSTGRES_PASSWORD=YOUR_DEV_DB_PASSWORD
 POSTGRES_USER=learnhouse_dev
-REDIS_PASSWORD=CfhIfLu2c1VEEpGmhs80NUUvUMzyCq1lmzBZmFJDdrs
+REDIS_PASSWORD=YOUR_DEV_REDIS_PASSWORD
 ```
 
-## LIVE Environment (edu.adradviser.ro)
+## LIVE Environment
 ```
 DEPLOYMENT_NAME=live
-LEARNHOUSE_DOMAIN=edu.adradviser.ro
-LEARNHOUSE_COOKIE_DOMAIN=edu.adradviser.ro
-LEARNHOUSE_CONTACT_EMAIL=adr-lm@whitex.cloud
+LEARNHOUSE_DOMAIN=your-prod-domain.com
+LEARNHOUSE_COOKIE_DOMAIN=your-prod-domain.com
+LEARNHOUSE_CONTACT_EMAIL=contact@.com
 LEARNHOUSE_EMAIL_PROVIDER=resend
 LEARNHOUSE_IS_AI_ENABLED=false
-LEARNHOUSE_REDIS_CONNECTION_STRING=redis://default:tRK6fpKHGM2lWY8AYvL7L5kRQhncF2gydYOxG4l8vNY@redis:6379/0
-LEARNHOUSE_RESEND_API_KEY=re_LenY3zNh_S5ShneCyS3Pbf6HX75Yt8jet
+LEARNHOUSE_REDIS_CONNECTION_STRING=redis://default:YOUR_LIVE_REDIS_PASSWORD@redis:6379/0
+LEARNHOUSE_RESEND_API_KEY=YOUR_RESEND_API_KEY
 LEARNHOUSE_SELF_HOSTED=true
 LEARNHOUSE_SITE_DESCRIPTION=ADR LMS is platform tailored for learning experiences.
 LEARNHOUSE_SITE_NAME=ADR LMS
-LEARNHOUSE_SQL_CONNECTION_STRING=postgresql://learnhouse:kOZ8JgUNNSbPKSlfIBDBs5Ycs+ZOVZ3NZZooQrOyOqI@db:5432/learnhouse
+LEARNHOUSE_SQL_CONNECTION_STRING=postgresql://learnhouse:YOUR_LIVE_DB_PASSWORD@db:5432/learnhouse
 LEARNHOUSE_SSL=true
-LEARNHOUSE_SYSTEM_EMAIL_ADDRESS=adr-lms@whitex.cloud
-NEXTAUTH_SECRET=LPBwWytdQu9QDQHTdHEOHsHGhXDqdu6I686dXLVHH4g
-NEXTAUTH_URL=https://edu.adradviser.ro
-NEXT_PUBLIC_API_URL=https://edu.adradviser.ro/api/v1/
-NEXT_PUBLIC_LEARNHOUSE_API_URL=https://edu.adradviser.ro/api/v1/
-NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL=https://edu.adradviser.ro/
+LEARNHOUSE_SYSTEM_EMAIL_ADDRESS=contact@.com
+NEXTAUTH_SECRET=YOUR_LIVE_NEXTAUTH_SECRET
+NEXTAUTH_URL=https://your-prod-domain.com
+NEXT_PUBLIC_API_URL=https://your-prod-domain.com/api/v1/
+NEXT_PUBLIC_LEARNHOUSE_API_URL=https://your-prod-domain.com/api/v1/
+NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL=https://your-prod-domain.com/
 NEXT_PUBLIC_LEARNHOUSE_DEFAULT_ORG=default
-NEXT_PUBLIC_LEARNHOUSE_DOMAIN=edu.adradviser.ro
+NEXT_PUBLIC_LEARNHOUSE_DOMAIN=your-prod-domain.com
 NEXT_PUBLIC_LEARNHOUSE_MULTI_ORG=false
-NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN=edu.adradviser.ro
+NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN=your-prod-domain.com
 POSTGRES_DB=learnhouse
-POSTGRES_PASSWORD=kOZ8JgUNNSbPKSlfIBDBs5Ycs+ZOVZ3NZZooQrOyOqI
+POSTGRES_PASSWORD=YOUR_LIVE_DB_PASSWORD
 POSTGRES_USER=learnhouse
-REDIS_PASSWORD=tRK6fpKHGM2lWY8AYvL7L5kRQhncF2gydYOxG4l8vNY
+REDIS_PASSWORD=YOUR_LIVE_REDIS_PASSWORD
 ```
 
 ## Key Differences for Isolation
