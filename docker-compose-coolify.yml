@@ -21,8 +21,6 @@ services:
       - LEARNHOUSE_REDIS_CONNECTION_STRING=${LEARNHOUSE_REDIS_CONNECTION_STRING}
       - LEARNHOUSE_CHROMADB_HOST=${LEARNHOUSE_CHROMADB_HOST}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
-    env_file:
-      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -39,22 +37,12 @@ services:
       interval: 2s
       timeout: 10s
       retries: 10
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.${DEPLOYMENT_NAME:-learnhouse}.rule=Host(`${LEARNHOUSE_DOMAIN}`)"
-      - "traefik.http.routers.${DEPLOYMENT_NAME:-learnhouse}.entrypoints=websecure"
-      - "traefik.http.services.${DEPLOYMENT_NAME:-learnhouse}.loadbalancer.server.port=80"
-      - "traefik.http.routers.${DEPLOYMENT_NAME:-learnhouse}.tls=true"
-    networks:
-      - backend
 
   db:
     image: postgres:16-alpine
     restart: always
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    env_file:
-      - .env
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -64,8 +52,6 @@ services:
       interval: 5s
       timeout: 4s
       retries: 5
-    networks:
-      - backend
 
   redis:
     image: redis:7.2.3
@@ -75,8 +61,7 @@ services:
     #   - "6379:6379"
     volumes:
       - redis-data:/data
-    env_file:
-      - .env
+
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
     healthcheck:
@@ -84,8 +69,6 @@ services:
       interval: 5s
       timeout: 4s
       retries: 5
-    networks:
-      - backend
 
   chromadb:
     image: chromadb/chroma:0.5.16
@@ -97,15 +80,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - backend
 
 volumes:
   postgres-data:
   redis-data:
   app-uploads:
-
-networks:
-  backend:
-    name: ${DEPLOYMENT_NAME:-learnhouse}-network
-    driver: bridge
