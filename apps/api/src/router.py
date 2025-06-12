@@ -2,9 +2,7 @@ import os
 from fastapi import APIRouter, Depends
 from src.routers import health
 from src.routers import usergroups
-from src.routers import dev, trail, users, auth, orgs, roles, search
-# Use enhanced debug module with improved isolation diagnostics
-from src.routers import debug_enhanced as debug
+from src.routers import dev, trail, users, auth, orgs, roles, search, debug
 from src.routers.ai import ai
 from src.routers.courses import chapters, collections, courses, assignments
 from src.routers.courses.activities import activities, blocks
