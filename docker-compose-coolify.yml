@@ -21,6 +21,16 @@ services:
       - LEARNHOUSE_REDIS_CONNECTION_STRING=${LEARNHOUSE_REDIS_CONNECTION_STRING}
       - LEARNHOUSE_CHROMADB_HOST=${LEARNHOUSE_CHROMADB_HOST}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      # Additional required environment variables
+      - LEARNHOUSE_CONTACT_EMAIL=${LEARNHOUSE_CONTACT_EMAIL}
+      - LEARNHOUSE_EMAIL_PROVIDER=${LEARNHOUSE_EMAIL_PROVIDER}
+      - LEARNHOUSE_IS_AI_ENABLED=${LEARNHOUSE_IS_AI_ENABLED}
+      - LEARNHOUSE_RESEND_API_KEY=${LEARNHOUSE_RESEND_API_KEY}
+      - LEARNHOUSE_SELF_HOSTED=${LEARNHOUSE_SELF_HOSTED}
+      - LEARNHOUSE_SITE_DESCRIPTION=${LEARNHOUSE_SITE_DESCRIPTION}
+      - LEARNHOUSE_SITE_NAME=${LEARNHOUSE_SITE_NAME}
+      - LEARNHOUSE_SSL=${LEARNHOUSE_SSL}
+      - LEARNHOUSE_SYSTEM_EMAIL_ADDRESS=${LEARNHOUSE_SYSTEM_EMAIL_ADDRESS}
     depends_on:
       db:
         condition: service_healthy
@@ -73,7 +83,7 @@ services:
   chromadb:
     image: chromadb/chroma:0.5.16
     environment:
-      - CHROMA_SERVER_HOST=localhost  # Only bind to container's localhost
+      - CHROMA_SERVER_HOST=0.0.0.0  # Accept connections from other containers
       - CHROMA_SERVER_HTTP_PORT=8000  # Keep internal port consistent
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1"]
