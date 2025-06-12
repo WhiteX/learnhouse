@@ -99,10 +99,18 @@ LEARNHOUSE_COOKIE_DOMAIN=your-staging-domain.example.com
 
 This automatically creates `staging-network` and Coolify handles volume isolation.
 
+## Current Status
+
+✅ **Port Configuration Fixed**: Changed from port 3000 to 80 to match nginx configuration  
+✅ **Network Isolation Implemented**: Using `DEPLOYMENT_NAME` for unique networks  
+✅ **Environment Variables Configured**: Complete isolation between deployments  
+⚠️ **In Progress**: Resolving 404 API routing issues
+
 ## Troubleshooting
 
-If you experience cookie mixing:
-1. **Verify DEPLOYMENT_NAME** is set differently for each deployment
-2. **Check cookie domains** match exactly in browser DevTools
-3. **Clear browser data** for both domains
-4. **Confirm network isolation** using the verification commands above
+If you encounter issues after deployment, use the debug script:
+```bash
+docker exec -it <container_name> /app/debug-services.sh
+```
+
+See `DEPLOYMENT_TROUBLESHOOTING.md` for detailed troubleshooting steps.

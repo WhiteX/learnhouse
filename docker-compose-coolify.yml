@@ -33,6 +33,11 @@ services:
       - LEARNHOUSE_SITE_NAME=${LEARNHOUSE_SITE_NAME}
       - LEARNHOUSE_SSL=${LEARNHOUSE_SSL}
       - LEARNHOUSE_SYSTEM_EMAIL_ADDRESS=${LEARNHOUSE_SYSTEM_EMAIL_ADDRESS}
+      # Backend port configuration
+      - LEARNHOUSE_PORT=9000
+      # Frontend port configuration  
+      - PORT=8000
+      - HOSTNAME=0.0.0.0
     depends_on:
       db:
         condition: service_healthy

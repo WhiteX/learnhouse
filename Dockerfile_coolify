@@ -59,6 +59,8 @@ WORKDIR /app
 COPY ./extra/nginx.conf /etc/nginx/conf.d/default.conf
 ENV PORT=80 LEARNHOUSE_PORT=9000 HOSTNAME=0.0.0.0
 COPY ./extra/start.sh /app/start.sh
+COPY ./debug-services.sh /app/debug-services.sh
+RUN chmod +x /app/start.sh /app/debug-services.sh
 
 # Add near the end of your Dockerfile_coolify
 RUN echo '#!/bin/bash\n\
