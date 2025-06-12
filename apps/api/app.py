@@ -1,4 +1,5 @@
 import uvicorn
+import os
 # import logfire
 from fastapi import FastAPI, Request
 from config.config import LearnHouseConfig, get_learnhouse_config
@@ -21,6 +22,15 @@ from fastapi.middleware.gzip import GZipMiddleware
 
 # Get LearnHouse Config
 learnhouse_config: LearnHouseConfig = get_learnhouse_config()
+
+# Debug logging for deployment isolation
+print(f"🔍 DEPLOYMENT DEBUG INFO:")
+print(f"   DEPLOYMENT_NAME: {os.environ.get('DEPLOYMENT_NAME', 'NOT_SET')}")
+print(f"   DATABASE: {learnhouse_config.database_config.sql_connection_string[:50]}...")
+print(f"   REDIS: {learnhouse_config.redis_config.redis_connection_string[:50]}...")
+print(f"   COOKIE_DOMAIN: {learnhouse_config.hosting_config.cookie_config.domain}")
+print(f"   API_DOMAIN: {learnhouse_config.hosting_config.domain}")
+print(f"🔍 END DEBUG INFO")
 
 # Global Config
 app = FastAPI(
@@ -81,3 +91,15 @@ if __name__ == "__main__":
 @app.get("/")
 async def root():
     return {"Message": "Welcome to LearnHouse ✨"}
+
+# Debug endpoint for deployment verification
+@app.get("/debug/deployment")
+async def debug_deployment():
+    import os
+    return {
+        "deployment_name": os.environ.get('DEPLOYMENT_NAME', 'NOT_SET'),
+        "cookie_domain": learnhouse_config.hosting_config.cookie_config.domain,
+        "api_domain": learnhouse_config.hosting_config.domain,
+        "database_host": learnhouse_config.database_config.sql_connection_string.split('@')[1].split('/')[0] if '@' in learnhouse_config.database_config.sql_connection_string else "unknown",
+        "redis_host": learnhouse_config.redis_config.redis_connection_string.split('@')[1].split(':')[0] if '@' in learnhouse_config.redis_config.redis_connection_string else "unknown"
+    }

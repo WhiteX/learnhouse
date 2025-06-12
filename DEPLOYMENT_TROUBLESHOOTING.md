@@ -47,14 +47,20 @@ See `COOLIFY_ENV_VARS.md` for complete list. Key variables for isolation:
 - ✅ **Port mismatch fixed**: Changed from 3000 to 80
 - ✅ **Container accessibility**: Traefik can now route to port 80
 - ✅ **Frontend running**: Next.js server operational on port 8000
-- ❌ **Backend failing**: PM2 bash execution error fixed
-- ⚠️ **502 errors**: Should resolve once backend starts correctly
+- ✅ **Backend running**: FastAPI server operational on port 9000
+- ❌ **Cross-deployment contamination**: LIVE calling DEV APIs and vice versa
+- ⚠️ **Root cause**: Frontend build-time API URLs not properly isolated
 
 ### Identified Issues & Fixes:
 
-**Problem**: Backend API service failing with bash execution error
-**Root Cause**: Incorrect PM2 command syntax for starting uvicorn
-**Solution**: Updated start script to use direct Python execution instead of bash interpreter
+**Problem**: Cross-deployment data contamination (LIVE sees DEV data)
+**Root Cause**: Next.js build embeds API URLs at build-time, both deployments may share same URLs
+**Solution**: Added runtime API URL patching in Docker container startup
+
+**Current Fix Applied**:
+1. ✅ Enhanced patched-start.sh to replace API URLs at runtime
+2. ✅ Added debug endpoint `/api/v1/debug/deployment` for verification
+3. ✅ Added deployment verification script `verify-isolation.sh`
 
 ### Next Debugging Steps:
 
@@ -102,14 +108,25 @@ The 502 errors should resolve once:
 
 ### Post-Deploy Verification:
 
-After redeploying, run the debug script again and verify:
+After redeploying, verify isolation works:
 ```bash
-docker exec -it <container_name> /app/debug-services.sh
+# Run the automated verification script
+./verify-isolation.sh
+
+# Or manually test the debug endpoints
+curl https://adr-lms.whitex.cloud/api/v1/debug/deployment
+curl https://edu.adradviser.ro/api/v1/debug/deployment
+
+# Check for cross-deployment API calls in browser Network tab
+# Should see only same-domain API calls:
+# - DEV: Only calls to adr-lms.whitex.cloud
+# - LIVE: Only calls to edu.adradviser.ro
 ```
 
 Expected output should show:
-- ✅ PM2 status: Both services "online" 
-- ✅ Port 9000: Backend responding with status 200
-- ✅ No bash execution errors in logs
+- ✅ Different database hosts for DEV vs LIVE
+- ✅ Different cookie domains: adr-lms.whitex.cloud vs edu.adradviser.ro  
+- ✅ No cross-domain API calls in browser Network tab
+- ✅ Separate content/courses on each deployment
 
 The port configuration fix was the critical missing piece for Traefik routing.

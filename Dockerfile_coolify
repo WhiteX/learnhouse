@@ -69,6 +69,12 @@ find /app/web/.next -type f -name "*.js" -exec sed -i "s/domain:[^,}]*,/domain: 
 find /app/web/.next -type f -name "*.js" -exec sed -i "s/domain: *process.env.LEARNHOUSE_COOKIE_DOMAIN/domain: undefined/g" {} \\;\n\
 find /app/web/.next -type f -name "*.js" -exec sed -i "s/\.domain\s*=\s*[^;]*;/\.domain = undefined;/g" {} \\;\n\
 echo "Patch complete."\n\
+echo "Patching API URLs for deployment isolation..."\n\
+if [ ! -z "$NEXT_PUBLIC_LEARNHOUSE_API_URL" ]; then\n\
+  find /app/web/.next -type f -name "*.js" -exec sed -i "s|https://[^/\"]*\\(/api/v1/\\)|${NEXT_PUBLIC_LEARNHOUSE_API_URL}|g" {} \\;\n\
+  find /app/web/.next -type f -name "*.js" -exec sed -i "s|https://[^/\"]*\\(/api/auth\\)|${NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL}api/auth|g" {} \\;\n\
+  echo "API URLs patched to: $NEXT_PUBLIC_LEARNHOUSE_API_URL"\n\
+fi\n\
 sh /app/start.sh' > /app/patched-start.sh && chmod +x /app/patched-start.sh
 
 # Use the patched start script
