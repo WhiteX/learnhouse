@@ -18,7 +18,12 @@ We've identified that both DEV and LIVE deployments are accessing the same datab
   git pull origin dev
   ```
 
-- [ ] Verify the debug endpoint files exist:
+- [ ] Deploy the enhanced debug tools first:
+  ```bash
+  ./deploy-enhanced-debug.sh
+  ```
+
+- [ ] Verify the enhanced debug endpoints are working:
   ```bash
   ls -la apps/api/src/routers/debug.py
   ```
@@ -80,19 +85,37 @@ We've identified that both DEV and LIVE deployments are accessing the same datab
 
 ### Step 5: Verification
 
-- [ ] Run verification scripts:
+- [ ] Run the comprehensive isolation verification script:
   ```bash
-  ./verify-isolation.sh
-  ./verify-db-isolation.sh
+  ./verify-all-isolation.sh
+  ```
+  This will:
+  - Check deployment configuration
+  - Verify database isolation
+  - Test cookie isolation
+  - Check for hardcoded URLs
+  - Create a visual cookie isolation demo
+
+- [ ] For more detailed verification, run individual scripts:
+  ```bash
+  ./verify-enhanced-isolation.sh      # Basic deployment checks
+  ./verify-db-isolation.sh            # Database-specific checks
+  ./test-nextauth-cookie-isolation.sh # Cookie isolation tests
+  ```
+
+- [ ] Test the visual cookie isolation demo:
+  ```bash
+  ./create-cookie-demo.sh
+  # Open the resulting HTML file in a browser
   ```
 
 - [ ] Access debug endpoints directly:
   - DEV: https://adr-lms.whitex.cloud/api/v1/debug/deployment
   - LIVE: https://edu.adradviser.ro/api/v1/debug/deployment
-
-- [ ] Check URLs in frontend:
-  - DEV: https://adr-lms.whitex.cloud/api/v1/debug/urls
-  - LIVE: https://edu.adradviser.ro/api/v1/debug/urls
+  - DEV: https://adr-lms.whitex.cloud/api/v1/debug/cookies
+  - LIVE: https://edu.adradviser.ro/api/v1/debug/cookies
+  - DEV: https://adr-lms.whitex.cloud/api/v1/debug/session
+  - LIVE: https://edu.adradviser.ro/api/v1/debug/session
 
 - [ ] Test in incognito browsers to verify session isolation
 
@@ -100,20 +123,30 @@ We've identified that both DEV and LIVE deployments are accessing the same datab
 
 If isolation issues persist after implementation:
 
-1. **Verify Database Connections**:
-   - Confirm debug endpoints show different database hosts
+1. **Use the Enhanced Debug Tools**:
+   - Look at the detailed reports in `/tmp/learnhouse-isolation-report/`
+   - Run specific tests: `./test-nextauth-cookie-isolation.sh` for cookie issues
+   - Check session configuration: `/api/v1/debug/session` endpoint
+
+2. **Verify Database Connections**:
+   - Confirm debug endpoints show different database hosts and names
    - Check actual database servers to confirm connections come from different sources
+   - Test with the database isolation script: `./verify-db-isolation.sh`
 
-2. **Clear Browser Data**:
+3. **Clear Browser Data**:
    - Use incognito mode or clear all cookies/cache for proper testing
+   - Try the cookie isolation demo to visually check cookie behavior
 
-3. **Check Docker Network Isolation**:
+4. **Check Docker Network Isolation**:
    - Ensure each deployment uses its own Docker network
    - Verify hostnames resolve to different IP addresses within containers
 
-4. **Validate URL Patching**:
+5. **Validate URL Patching**:
    - Run URL debug endpoint to confirm no hardcoded references remain
+   - Check the enhanced URL report in `/api/v1/debug/urls` endpoint
 
 For additional help, refer to the full documentation in:
-- `DATABASE_ISOLATION_FIX.md`
-- `DEPLOYMENT_TROUBLESHOOTING.md`
+- `ENHANCED_DEBUG_TOOLS.md` - Detailed guide to all debug endpoints
+- `DATABASE_ISOLATION_FIX.md` - Database isolation specifics
+- `DEPLOYMENT_TROUBLESHOOTING.md` - General deployment troubleshooting
+- `ISOLATION_TOOLKIT_README.md` - Overview of all isolation tools

@@ -67,8 +67,8 @@ export const nextAuthOptions = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        // When working on localhost, the cookie domain must be omitted entirely (https://stackoverflow.com/a/1188145)
-        domain: `.${LEARNHOUSE_TOP_DOMAIN}`,
+        // When working on localhost or with different domains, use the current domain instead of a shared top domain
+        domain: process.env.LEARNHOUSE_COOKIE_DOMAIN || (LEARNHOUSE_TOP_DOMAIN === 'localhost' ? undefined : `.${LEARNHOUSE_TOP_DOMAIN}`),
         secure: !isDevEnv,
       },
     },

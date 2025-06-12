@@ -143,9 +143,31 @@ Added comprehensive debug endpoints:
 
 After implementing these changes:
 
-1. Run `./verify-isolation.sh` to check deployment isolation
-2. Verify each deployment has its own database connection using `/api/v1/debug/deployment` endpoint
-3. Check that no cross-domain references appear in the frontend
+1. **Deploy the enhanced debug tools**:
+   ```bash
+   ./deploy-enhanced-debug.sh
+   ```
+
+2. **Run the enhanced verification script** for comprehensive isolation checks:
+   ```bash
+   ./verify-enhanced-isolation.sh
+   ```
+
+3. **Verify cookie isolation** using the dedicated cookie debug endpoint:
+   ```bash
+   curl -v https://adr-lms.whitex.cloud/api/v1/debug/cookies
+   curl -v https://edu.adradviser.ro/api/v1/debug/cookies
+   ```
+
+4. **Check session configuration** to ensure proper isolation:
+   ```bash
+   curl https://adr-lms.whitex.cloud/api/v1/debug/session
+   curl https://edu.adradviser.ro/api/v1/debug/session
+   ```
+
+5. **Test with incognito browsers** to ensure sessions don't cross-contaminate between deployments
+
+See `ENHANCED_DEBUG_TOOLS.md` for more detailed information on these debugging endpoints.
 
 ## Implementation Plan
 

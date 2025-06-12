@@ -53,7 +53,6 @@ async def debug_deployment():
             pass
     
     # Get hostname information
-    import socket
     hostname = "unknown"
     try:
         hostname = socket.gethostname()
@@ -201,9 +200,70 @@ async def debug_urls(request: Request):
             "message": "Could not scan for hardcoded URLs",
             "deployment_name": os.environ.get('DEPLOYMENT_NAME', 'NOT_SET')
         }
-    except Exception as e:
-        return {
-            "error": str(e),
-            "message": "Could not scan for hardcoded URLs",
-            "deployment_name": os.environ.get('DEPLOYMENT_NAME', 'NOT_SET')
-        }
+
+@router.get("/cookies")
+async def debug_cookies(request: Request, response: Response):
+    """Debug endpoint to test cookie isolation and behavior"""
+    # Get current configuration
+    learnhouse_config = get_learnhouse_config()
+    cookie_domain = learnhouse_config.hosting_config.cookie_config.domain
+    deployment_name = os.environ.get('DEPLOYMENT_NAME', 'unknown')
+    
+    # Set a test cookie with the current configuration
+    response.set_cookie(
+        key=f"isolation-test-{deployment_name}",
+        value=deployment_name,
+        domain=cookie_domain,
+        httponly=True,
+        samesite="lax",
+        path="/"
+    )
+    
+    # Try to read any existing isolation test cookies
+    cookies = request.cookies
+    isolation_cookies = {}
+    
+    for key, value in cookies.items():
+        if key.startswith("isolation-test-"):
+            isolation_cookies[key] = value
+    
+    return {
+        "deployment_name": deployment_name,
+        "cookie_domain": cookie_domain,
+        "request_host": request.headers.get("host", "unknown"),
+        "detected_isolation_cookies": isolation_cookies,
+        "all_cookies": {k: "****" if not k.startswith("isolation-test") else v for k, v in cookies.items()},
+        "top_domain": os.environ.get('NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN', 'NOT_SET'),
+        "message": f"Set test cookie 'isolation-test-{deployment_name}={deployment_name}' with domain={cookie_domain}"
+    }
+
+@router.get("/session")
+async def debug_session(request: Request):
+    """Debug endpoint to check session-related headers and environment variables"""
+    # Extract host information
+    host = request.headers.get("host", "unknown")
+    origin = request.headers.get("origin", "unknown")
+    referer = request.headers.get("referer", "unknown")
+    
+    # Extract NextAuth related information
+    nextauth_url = os.environ.get('NEXTAUTH_URL', 'NOT_SET')
+    nextauth_url_internal = os.environ.get('NEXTAUTH_URL_INTERNAL', 'NOT_SET')
+    
+    # Check if session requests would go to the correct place
+    session_destination = nextauth_url or f"https://{host}"
+    
+    return {
+        "deployment_name": os.environ.get('DEPLOYMENT_NAME', 'unknown'),
+        "request_headers": {
+            "host": host,
+            "origin": origin,
+            "referer": referer,
+        },
+        "session_config": {
+            "NEXTAUTH_URL": nextauth_url,
+            "NEXTAUTH_URL_INTERNAL": nextauth_url_internal,
+            "detected_session_destination": session_destination
+        },
+        "cookie_domain": get_learnhouse_config().hosting_config.cookie_config.domain,
+        "message": "This endpoint helps diagnose where NextAuth session data would be sent"
+    }
