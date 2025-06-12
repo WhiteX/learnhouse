@@ -46,7 +46,15 @@ See `COOLIFY_ENV_VARS.md` for complete list. Key variables for isolation:
 
 - ✅ **Port mismatch fixed**: Changed from 3000 to 80
 - ✅ **Container accessibility**: Traefik can now route to port 80
-- ⚠️ **404 errors remain**: Frontend/backend internal communication issue
+- ✅ **Frontend running**: Next.js server operational on port 8000
+- ❌ **Backend failing**: PM2 bash execution error fixed
+- ⚠️ **502 errors**: Should resolve once backend starts correctly
+
+### Identified Issues & Fixes:
+
+**Problem**: Backend API service failing with bash execution error
+**Root Cause**: Incorrect PM2 command syntax for starting uvicorn
+**Solution**: Updated start script to use direct Python execution instead of bash interpreter
 
 ### Next Debugging Steps:
 
@@ -87,9 +95,21 @@ docker exec -it <container> /app/debug-services.sh
 
 ### Expected Resolution:
 
-The 404 errors should resolve once:
-1. Frontend service starts correctly on port 8000
-2. Backend service starts correctly on port 9000  
-3. Nginx properly proxies requests between them
+The 502 errors should resolve once:
+1. ✅ Frontend service starts correctly on port 8000 (WORKING)
+2. ❌ Backend service starts correctly on port 9000 (FIXED - needs redeploy)
+3. ✅ Nginx properly proxies requests between them (WORKING)
+
+### Post-Deploy Verification:
+
+After redeploying, run the debug script again and verify:
+```bash
+docker exec -it <container_name> /app/debug-services.sh
+```
+
+Expected output should show:
+- ✅ PM2 status: Both services "online" 
+- ✅ Port 9000: Backend responding with status 200
+- ✅ No bash execution errors in logs
 
 The port configuration fix was the critical missing piece for Traefik routing.
