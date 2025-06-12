@@ -9,9 +9,16 @@ echo "📋 DEV Deployment (adr-lms.whitex.cloud):"
 echo "----------------------------------------"
 echo "Testing API connection..."
 DEV_RESPONSE=$(curl -s https://adr-lms.whitex.cloud/api/v1/debug/deployment 2>/dev/null)
+DEV_ROOT=$(curl -s https://adr-lms.whitex.cloud/ 2>/dev/null | head -200)
 if [ $? -eq 0 ]; then
     echo "✅ DEV API accessible"
-    echo "   Response: $DEV_RESPONSE"
+    echo "   Debug Response: $DEV_RESPONSE"
+    if [[ "$DEV_ROOT" == *"LearnHouse"* ]] || [[ "$DEV_ROOT" == *"React"* ]] || [[ "$DEV_ROOT" == *"Next"* ]]; then
+        echo "✅ DEV Frontend serving properly"
+    else
+        echo "⚠️  DEV Frontend response unclear"
+        echo "   Root response (first 100 chars): ${DEV_ROOT:0:100}"
+    fi
 else
     echo "❌ DEV API not accessible"
 fi
@@ -31,9 +38,16 @@ echo "📋 LIVE Deployment (edu.adradviser.ro):"
 echo "---------------------------------------"
 echo "Testing API connection..."
 LIVE_RESPONSE=$(curl -s https://edu.adradviser.ro/api/v1/debug/deployment 2>/dev/null)
+LIVE_ROOT=$(curl -s https://edu.adradviser.ro/ 2>/dev/null | head -200)
 if [ $? -eq 0 ]; then
     echo "✅ LIVE API accessible"
-    echo "   Response: $LIVE_RESPONSE"
+    echo "   Debug Response: $LIVE_RESPONSE"
+    if [[ "$LIVE_ROOT" == *"LearnHouse"* ]] || [[ "$LIVE_ROOT" == *"React"* ]] || [[ "$LIVE_ROOT" == *"Next"* ]]; then
+        echo "✅ LIVE Frontend serving properly"
+    else
+        echo "⚠️  LIVE Frontend response unclear"
+        echo "   Root response (first 100 chars): ${LIVE_ROOT:0:100}"
+    fi
 else
     echo "❌ LIVE API not accessible"
 fi
