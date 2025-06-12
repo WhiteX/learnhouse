@@ -22,12 +22,12 @@ LEARNHOUSE_COOKIE_DOMAIN=your-dev-domain.com
 LEARNHOUSE_CONTACT_EMAIL=contact@.com
 LEARNHOUSE_EMAIL_PROVIDER=resend
 LEARNHOUSE_IS_AI_ENABLED=false
-LEARNHOUSE_REDIS_CONNECTION_STRING=redis://default:YOUR_DEV_REDIS_PASSWORD@redis:6379/1
+LEARNHOUSE_REDIS_CONNECTION_STRING=redis://default:YOUR_DEV_REDIS_PASSWORD@redis-dev:6379/1  # Use deployment-specific Redis hostname
 LEARNHOUSE_RESEND_API_KEY=YOUR_RESEND_API_KEY
 LEARNHOUSE_SELF_HOSTED=true
 LEARNHOUSE_SITE_DESCRIPTION=ADR LMS is platform tailored for learning experiences.
 LEARNHOUSE_SITE_NAME=ADR LMS
-LEARNHOUSE_SQL_CONNECTION_STRING=postgresql://learnhouse_dev:YOUR_DEV_DB_PASSWORD@db:5432/learnhouse_dev
+LEARNHOUSE_SQL_CONNECTION_STRING=postgresql://learnhouse_dev:YOUR_DEV_DB_PASSWORD@db-dev:5432/learnhouse_dev  # Use deployment-specific database hostname
 LEARNHOUSE_SSL=true
 LEARNHOUSE_SYSTEM_EMAIL_ADDRESS=contact@.com
 NEXTAUTH_SECRET=YOUR_DEV_NEXTAUTH_SECRET
@@ -53,12 +53,12 @@ LEARNHOUSE_COOKIE_DOMAIN=your-prod-domain.com
 LEARNHOUSE_CONTACT_EMAIL=contact@.com
 LEARNHOUSE_EMAIL_PROVIDER=resend
 LEARNHOUSE_IS_AI_ENABLED=false
-LEARNHOUSE_REDIS_CONNECTION_STRING=redis://default:YOUR_LIVE_REDIS_PASSWORD@redis:6379/0
+LEARNHOUSE_REDIS_CONNECTION_STRING=redis://default:YOUR_LIVE_REDIS_PASSWORD@redis-live:6379/0  # Use deployment-specific Redis hostname
 LEARNHOUSE_RESEND_API_KEY=YOUR_RESEND_API_KEY
 LEARNHOUSE_SELF_HOSTED=true
 LEARNHOUSE_SITE_DESCRIPTION=ADR LMS is platform tailored for learning experiences.
 LEARNHOUSE_SITE_NAME=ADR LMS
-LEARNHOUSE_SQL_CONNECTION_STRING=postgresql://learnhouse:YOUR_LIVE_DB_PASSWORD@db:5432/learnhouse
+LEARNHOUSE_SQL_CONNECTION_STRING=postgresql://learnhouse:YOUR_LIVE_DB_PASSWORD@db-live:5432/learnhouse  # Use deployment-specific database hostname
 LEARNHOUSE_SSL=true
 LEARNHOUSE_SYSTEM_EMAIL_ADDRESS=contact@.com
 NEXTAUTH_SECRET=YOUR_LIVE_NEXTAUTH_SECRET
@@ -81,7 +81,21 @@ REDIS_PASSWORD=YOUR_LIVE_REDIS_PASSWORD
 The critical environment variables that ensure complete isolation:
 
 1. **DEPLOYMENT_NAME**: Different for each environment (`dev` vs `live`)
-2. **Domain Variables**: Point to different domains
-3. **Database Credentials**: Different databases and users
-4. **Redis Connection**: Different Redis databases (1 vs 0)
-5. **Secrets**: Different NEXTAUTH_SECRET values
+2. **Domain Variables**: Point to different domains 
+3. **Database Hostnames**: Use deployment-specific hostnames (`db-dev` vs `db-live`)
+4. **Redis Hostnames**: Use deployment-specific hostnames (`redis-dev` vs `redis-live`)
+5. **Database Credentials**: Different databases and users
+6. **Redis Connection**: Different Redis databases (1 vs 0)
+7. **Secrets**: Different NEXTAUTH_SECRET values
+
+## Deployment Isolation Strategy
+
+To prevent cross-deployment contamination:
+
+1. **Database Isolation**: Each deployment must use its own separate database server with a unique hostname
+2. **Redis Isolation**: Each deployment must use its own Redis instance with a unique hostname
+3. **Domain Isolation**: Each deployment must use its own domain and cookie domain
+4. **URL Patching**: The Dockerfile includes runtime patching of hardcoded URLs
+5. **Network Isolation**: Each deployment should use its own Docker network
+
+See `DATABASE_ISOLATION_FIX.md` for detailed implementation steps.
