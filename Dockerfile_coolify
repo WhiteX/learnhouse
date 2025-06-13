@@ -112,6 +112,9 @@ RUN chmod +x /app/start.sh
 RUN echo '#!/bin/bash\n\
 echo "Generating runtime configuration..."\n\
 mkdir -p /app/web/public\n\
+# Copy domain isolation loader to public folder\n\
+cp /app/web/public/domain-isolation-loader.js /app/web/public/ 2>/dev/null || echo "Domain isolation loader not found in source, generating it..."\n\
+# Generate runtime config\n\
 cat > /app/web/public/runtime-config.js << EOF\n\
 window.RUNTIME_CONFIG = {\n\
   LEARNHOUSE_API_URL: "${NEXT_PUBLIC_LEARNHOUSE_API_URL:-}",\n\
@@ -125,43 +128,104 @@ EOF\n\
 \n\
 echo "Runtime configuration generated successfully"\n\
 \n\
-# Create a utility script to override fetch for better URL control\n\
+# Create an enhanced utility script to override all network requests with domain isolation\n\
 cat > /app/web/public/api-interceptor.js << EOF\n\
 (function() {\n\
   // Get the current domain\n\
   const currentDomain = window.location.hostname;\n\
-  console.log("Current domain:", currentDomain);\n\
+  console.log("[Domain Isolation] Current domain:", currentDomain);\n\
   \n\
   // Check if RUNTIME_CONFIG is available\n\
   if (!window.RUNTIME_CONFIG) {\n\
-    console.error("Runtime config not found!");\n\
+    console.warn("[Domain Isolation] Runtime config not found, creating empty one.");\n\
     window.RUNTIME_CONFIG = {};\n\
   }\n\
   \n\
-  // Save the original fetch function\n\
-  const originalFetch = window.fetch;\n\
+  // Store the domain info globally\n\
+  window.LEARNHOUSE_DOMAIN = currentDomain;\n\
   \n\
-  // Override fetch to enforce current domain\n\
+  // 1. Intercept fetch API\n\
+  const originalFetch = window.fetch;\n\
   window.fetch = function(url, options) {\n\
     if (typeof url === "string") {\n\
-      // Check if URL contains a domain that doesnt match current domain\n\
-      const urlObj = new URL(url, window.location.origin);\n\
-      const targetDomain = urlObj.hostname;\n\
-      \n\
-      // If URL has a different domain than current domain, change it\n\
-      if (targetDomain !== currentDomain && url.includes("/api/")) {\n\
-        console.warn("Redirecting API request to current domain:", url);\n\
-        const newUrl = url.replace(targetDomain, currentDomain);\n\
-        console.log("New URL:", newUrl);\n\
-        return originalFetch(newUrl, options);\n\
+      try {\n\
+        // Handle both absolute and relative URLs\n\
+        const urlObj = new URL(url, window.location.origin);\n\
+        const targetDomain = urlObj.hostname;\n\
+        \n\
+        // If URL has a different domain than current domain, rewrite it\n\
+        if (targetDomain !== currentDomain) {\n\
+          // Allow external APIs like umami\n\
+          if (targetDomain.includes('api-gateway.umami.dev')) {\n\
+            return originalFetch(url, options);\n\
+          }\n\
+          \n\
+          console.warn("[Domain Isolation] Redirecting request to current domain:", url);\n\
+          const newUrl = url.replace(/https?:\\/\\/[^\\/]+/, window.location.origin);\n\
+          console.log("[Domain Isolation] New URL:", newUrl);\n\
+          return originalFetch(newUrl, options);\n\
+        }\n\
+      } catch (e) {\n\
+        console.error("[Domain Isolation] Error processing URL:", e);\n\
       }\n\
     }\n\
-    \n\
-    // Call the original fetch with unchanged URL\n\
     return originalFetch(url, options);\n\
   };\n\
   \n\
-  console.log("API interceptor installed successfully");\n\
+  // 2. Intercept XMLHttpRequest\n\
+  const originalXHROpen = XMLHttpRequest.prototype.open;\n\
+  XMLHttpRequest.prototype.open = function(method, url, ...rest) {\n\
+    if (typeof url === "string") {\n\
+      try {\n\
+        const urlObj = new URL(url, window.location.origin);\n\
+        const targetDomain = urlObj.hostname;\n\
+        \n\
+        if (targetDomain !== currentDomain) {\n\
+          // Allow external APIs\n\
+          if (targetDomain.includes('api-gateway.umami.dev')) {\n\
+            return originalXHROpen.call(this, method, url, ...rest);\n\
+          }\n\
+          \n\
+          console.warn("[Domain Isolation] Redirecting XHR to current domain:", url);\n\
+          const newUrl = url.replace(/https?:\\/\\/[^\\/]+/, window.location.origin);\n\
+          console.log("[Domain Isolation] New XHR URL:", newUrl);\n\
+          return originalXHROpen.call(this, method, newUrl, ...rest);\n\
+        }\n\
+      } catch (e) {\n\
+        console.error("[Domain Isolation] Error processing XHR URL:", e);\n\
+      }\n\
+    }\n\
+    return originalXHROpen.call(this, method, url, ...rest);\n\
+  };\n\
+  \n\
+  // 3. Fix Next.js chunk loading issues\n\
+  const originalReactDOMCreateScriptHook = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');\n\
+  if (originalReactDOMCreateScriptHook) {\n\
+    Object.defineProperty(HTMLScriptElement.prototype, 'src', {\n\
+      get: originalReactDOMCreateScriptHook.get,\n\
+      set: function(url) {\n\
+        if (typeof url === 'string') {\n\
+          try {\n\
+            const urlObj = new URL(url, window.location.origin);\n\
+            const targetDomain = urlObj.hostname;\n\
+            \n\
+            if (targetDomain !== currentDomain && url.includes('/next/static/chunks/')) {\n\
+              const newUrl = url.replace(/https?:\\/\\/[^\\/]+/, window.location.origin);\n\
+              console.warn("[Domain Isolation] Redirecting script src to current domain:", url);\n\
+              console.log("[Domain Isolation] New script src:", newUrl);\n\
+              return originalReactDOMCreateScriptHook.set.call(this, newUrl);\n\
+            }\n\
+          } catch (e) {\n\
+            console.error("[Domain Isolation] Error processing script URL:", e);\n\
+          }\n\
+        }\n\
+        return originalReactDOMCreateScriptHook.set.call(this, url);\n\
+      },\n\
+      configurable: true\n\
+    });\n\
+  }\n\
+  \n\
+  console.log("[Domain Isolation] Complete domain isolation system installed");\n\
 })();\n\
 EOF\n\
 \n\

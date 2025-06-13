@@ -4,10 +4,12 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        {/* Load runtime configuration before any app code */}
-        <script src="/runtime-config.js" />
-        {/* Load API interceptor to enforce correct domain */}
-        <script src="/api-interceptor.js" />
+        {/* Load domain isolation loader first - immediate protection */}
+        <script src="/domain-isolation-loader.js" strategy="beforeInteractive" />
+        {/* Load runtime configuration */}
+        <script src="/runtime-config.js" strategy="beforeInteractive" />
+        {/* Load comprehensive API interceptor */}
+        <script src="/api-interceptor.js" strategy="beforeInteractive" />
       </Head>
       <body>
         <Main />
