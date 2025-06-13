@@ -59,8 +59,7 @@ WORKDIR /app
 COPY ./extra/nginx.conf /etc/nginx/conf.d/default.conf
 ENV PORT=80 LEARNHOUSE_PORT=9000 HOSTNAME=0.0.0.0
 COPY ./extra/start.sh /app/start.sh
-COPY ./debug-services.sh /app/debug-services.sh
-RUN chmod +x /app/start.sh /app/debug-services.sh
+RUN chmod +x /app/start.sh
 
 # Add enhanced URL and domain patching
 RUN echo '#!/bin/bash\n\
@@ -69,38 +68,6 @@ find /app/web/.next -type f -name "*.js" -exec sed -i "s/domain:[^,}]*,/domain: 
 find /app/web/.next -type f -name "*.js" -exec sed -i "s/domain: *process.env.LEARNHOUSE_COOKIE_DOMAIN/domain: undefined/g" {} \\;\n\
 find /app/web/.next -type f -name "*.js" -exec sed -i "s/\.domain\s*=\s*[^;]*;/\.domain = undefined;/g" {} \\;\n\
 echo "Cookie domain patches complete."\n\
-\n\
-echo "Patching API URLs for deployment isolation..."\n\
-if [ ! -z "$NEXT_PUBLIC_LEARNHOUSE_DOMAIN" ]; then\n\
-  echo "Domain value found: $NEXT_PUBLIC_LEARNHOUSE_DOMAIN"\n\
-  # Extract the domain without protocol\n\
-  DOMAIN_ONLY=$(echo "$NEXT_PUBLIC_LEARNHOUSE_DOMAIN" | sed -E "s/^https?:\\/\\///g")\n\
-  echo "Extracted domain: $DOMAIN_ONLY"\n\
-  \n\
-  # Replace all occurrences of edu.adradviser.ro with the current domain\n\
-  find /app/web/.next -type f -name "*.js" -exec sed -i "s|http://edu.adradviser.ro|$NEXT_PUBLIC_LEARNHOUSE_DOMAIN|g" {} \\;\n\
-  find /app/web/.next -type f -name "*.js" -exec sed -i "s|https://edu.adradviser.ro|$NEXT_PUBLIC_LEARNHOUSE_DOMAIN|g" {} \\;\n\
-  find /app/web/.next -type f -name "*.js" -exec sed -i "s|//edu.adradviser.ro|//$DOMAIN_ONLY|g" {} \\;\n\
-  find /app/web/.next -type f -name "*.js" -exec sed -i "s|\"href\":\"http://edu.adradviser.ro|\"href\":\"$NEXT_PUBLIC_LEARNHOUSE_DOMAIN|g" {} \\;\n\
-  find /app/web/.next -type f -name "*.js" -exec sed -i "s|https://edu.adradviser.ro|$NEXT_PUBLIC_LEARNHOUSE_DOMAIN|g" {} \\;\n\
-  find /app/web/.next -type f -name "*.html" -exec sed -i "s|http://edu.adradviser.ro|$NEXT_PUBLIC_LEARNHOUSE_DOMAIN|g" {} \\;\n\
-  find /app/web/.next -type f -name "*.html" -exec sed -i "s|https://edu.adradviser.ro|$NEXT_PUBLIC_LEARNHOUSE_DOMAIN|g" {} \\;\n\
-  \n\
-  # Replace absolute URL paths\n\
-  find /app/web/.next -type f -name "*.js" -exec sed -i "s|https://[^/\"]*\\(/api/v1/\\)|${NEXT_PUBLIC_LEARNHOUSE_API_URL}|g" {} \\;\n\
-  find /app/web/.next -type f -name "*.js" -exec sed -i "s|https://[^/\"]*\\(/api/auth\\)|${NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL}api/auth|g" {} \\;\n\
-  \n\
-  # Replace hardcoded href values\n\
-  find /app/web/.next -type f -name "*.js" -exec sed -i "s|href:\\\"http://edu.adradviser.ro|href:\\\"$NEXT_PUBLIC_LEARNHOUSE_DOMAIN|g" {} \\;\n\
-  find /app/web/.next -type f -name "*.js" -exec sed -i "s|href:\\\"https://edu.adradviser.ro|href:\\\"$NEXT_PUBLIC_LEARNHOUSE_DOMAIN|g" {} \\;\n\
-  \n\
-  echo "URL and domain patching completed using: $NEXT_PUBLIC_LEARNHOUSE_DOMAIN"\n\
-  \n\
-  # Verify the changes\n\
-  echo "Verification of patched files:"\n\
-  grep -r "edu.adradviser.ro" /app/web/.next --include="*.js" | head -5 || echo "No references to edu.adradviser.ro found (good)"\n\
-fi\n\
-\n\
 echo "Starting application..."\n\
 sh /app/start.sh' > /app/patched-start.sh && chmod +x /app/patched-start.sh
 
