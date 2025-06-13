@@ -10,9 +10,11 @@ export default function AuthLayout({
 }: {
     children: React.ReactNode
 }) {
+    // Use optional chaining with proper typing to fix build error
     const searchParams = useSearchParams()
-    // Use optional chaining and nullish coalescing for type safety
-    const orgslug = searchParams?.get('orgslug') ?? null
+    // Type-safe approach to getting optional params
+    const orgslug = searchParams ? searchParams.get('orgslug') : null
+    
     if (orgslug) {
         return <OrgProvider orgslug={orgslug}>{children}</OrgProvider>
     } else {
