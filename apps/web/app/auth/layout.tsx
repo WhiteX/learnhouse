@@ -1,8 +1,9 @@
-'use client'
+'use client';
+
 import { OrgProvider } from '@components/Contexts/OrgContext'
 import ErrorUI from '@components/Objects/StyledElements/Error/Error'
 import { useSearchParams } from 'next/navigation'
-
+import React from 'react'
 
 export default function AuthLayout({
     children,
@@ -10,7 +11,8 @@ export default function AuthLayout({
     children: React.ReactNode
 }) {
     const searchParams = useSearchParams()
-    const orgslug = searchParams.get('orgslug')
+    // Use optional chaining and nullish coalescing for type safety
+    const orgslug = searchParams?.get('orgslug') ?? null
     if (orgslug) {
         return <OrgProvider orgslug={orgslug}>{children}</OrgProvider>
     } else {

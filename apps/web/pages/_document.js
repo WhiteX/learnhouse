@@ -6,6 +6,8 @@ export default function Document() {
       <Head>
         {/* Load runtime configuration before any app code */}
         <script src="/runtime-config.js" />
+        {/* Load API interceptor to enforce correct domain */}
+        <script src="/api-interceptor.js" />
       </Head>
       <body>
         <Main />
