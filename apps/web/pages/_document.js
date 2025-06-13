@@ -10,6 +10,8 @@ export default function Document() {
         <script src="/runtime-config.js" strategy="beforeInteractive" />
         {/* Load comprehensive API interceptor */}
         <script src="/api-interceptor.js" strategy="beforeInteractive" />
+        {/* Load API response sanitizer */}
+        <script src="/api-response-sanitizer.js" strategy="beforeInteractive" />
       </Head>
       <body>
         <Main />

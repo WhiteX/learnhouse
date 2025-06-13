@@ -78,6 +78,10 @@ RUN if [ -f pnpm-lock.yaml ]; then \
     else echo "Lockfile not found." && exit 1; \
     fi
 
+# Make sure the images directory exists in public folder with a placeholder avatar
+RUN mkdir -p /app/web/public/images && \
+    echo "iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAABmJLR0QA/wD/AP+gvaeTAAADc0lEQVRoge2ZS0hUURjHf2fGcSaViDSJoKKSoiAzaGE9VrXIjRZBm2hVRG2iB0SPVUW7IM0ehLWIdlYQQY+FipWZWj0siJ60ygiziGye8870cWfuPJ1774yO9v/g4pz7+L7z/b/vnnvuOQMtWrT4lxH/OkHQWlpfqdedlo5T49wl1V9eclXkSLCtXeGDNvL5AFwoaa0CXhX0Qdpup8L7ddeiFNlL9gJLbOMCuOWkPXfSGvFvLWlLgAceUwFccdIGnbRG/HuB0x66KcBxJ21RmbsGOA/oveTx75YjwJMKthFgk5N2DICTNiJ8tmnGNdc7acNeOW3jw062J/Cu2HAKmOmkDQggpXxnGy4A9rhpRw5vZBJQWrEYs1qclECn/ekuYIHLbsSN+0CldLZhvQtnaQ7uEVXXgRNSytlCyhe28XrgdgMmcUWpdJr/5CRErbQe2GQbv6CUej0+Pl5XDD/UXQMKdVhpx4AO4KpS6pVdJ6X8KIR4YhveAOxvyGyOKDUBwKuXFxXwAdghhLhn1wkh7hGsEVv9DF4pTsmIMnz6M3mAZUqpm1LKjN1HSvm8XC5fsY0vBY7OH2p0pGJMtwExgA3AGSnlErvO5/M9EkI8tw3vALY3alSVT8mINhznfSNm3wFb/g+0ULIGNQ3a7wZ6hRDdNl1BKbVfCPHWNn4A2Duz2cwCLUMa9GnB7/evklKuUEq9K5VK72dmZsrVtKVSaSkwB3gqhPjmdW4t0DIkzuQdWnGMrvMZdFQxNniMrgDvMrDdQXcAOBTFtypp6SsZkDMg40DGOMZ0+ON0A1uBJNAP9ETxbwhaNgETZkUlwLqI/o1By1YgbdRfBvZE9G8MWnYAl4z664DvX/AJA1qeNupHgb1R/BuDlgfR923AL8w7HImwA2vpNRq/MO9wJMIOLKRH4x4GOqP4NwYt0/b5Y8DhiP6NQcvzRv0VYF8U/8agZR+Qwpw/tkfxbwxa7gLOovn9wN4o/g1By7TZWag+hzQctHwe7T2EudJrCUJDy3NgqGVIg/4RsMUFeYeWwE2rDoxhLvMqbAeOT/fkzYGJsNORT4tn+HzAHvSHAe0I4W7ZMA5cLBaLw+l0Op/L5Ubz+fw787ex6bpbNLuUT6Ct7Z4QYgnQabQV0BMuhxDilVKqh/8gYLO02q92i/8sPwESO6wpKl0UfgAAAABJRU5ErkJggg==" | base64 -d > /app/web/public/images/empty_avatar.png
+
 # Final image
 FROM base AS runner
 RUN addgroup --system --gid 1001 system \
@@ -226,6 +230,103 @@ cat > /app/web/public/api-interceptor.js << EOF\n\
   }\n\
   \n\
   console.log("[Domain Isolation] Complete domain isolation system installed");\n\
+})();\n\
+EOF\n\
+\n\
+# Create API response sanitizer\n\
+cat > /app/web/public/api-response-sanitizer.js << EOF\n\
+/**\n\
+ * API Response Sanitizer\n\
+ * \n\
+ * This script specifically handles API responses to ensure they don't contain\n\
+ * URLs pointing to the wrong domain.\n\
+ */\n\
+(function() {\n\
+  console.log('[Domain Isolation] Installing API response sanitizer...');\n\
+  \n\
+  // Save reference to the original fetch\n\
+  const originalFetch = window.fetch;\n\
+\n\
+  /**\n\
+   * Recursively sanitize objects to replace URLs from wrong domains\n\
+   */\n\
+  function sanitizeObject(obj, currentDomain) {\n\
+    if (!obj || typeof obj !== 'object') return obj;\n\
+    \n\
+    // Handle arrays\n\
+    if (Array.isArray(obj)) {\n\
+      return obj.map(item => sanitizeObject(item, currentDomain));\n\
+    }\n\
+    \n\
+    // Handle objects\n\
+    const result = {};\n\
+    \n\
+    for (const [key, value] of Object.entries(obj)) {\n\
+      // Check if this is a URL string value\n\
+      if (typeof value === 'string' && \n\
+          (value.startsWith('http://') || value.startsWith('https://'))) {\n\
+        try {\n\
+          const url = new URL(value);\n\
+          if (url.hostname !== currentDomain && \n\
+              !url.hostname.includes('api-gateway.umami.dev')) {\n\
+            console.log(`[Sanitizer] Found cross-domain URL: ${value}`);\n\
+            const newValue = value.replace(url.hostname, currentDomain);\n\
+            result[key] = newValue;\n\
+            continue;\n\
+          }\n\
+        } catch (e) {\n\
+          // Not a valid URL, keep original value\n\
+        }\n\
+      }\n\
+      \n\
+      // Process nested objects/arrays\n\
+      if (value && typeof value === 'object') {\n\
+        result[key] = sanitizeObject(value, currentDomain);\n\
+      } else {\n\
+        result[key] = value;\n\
+      }\n\
+    }\n\
+    \n\
+    return result;\n\
+  }\n\
+  \n\
+  // Override fetch to sanitize responses\n\
+  window.fetch = async function(...args) {\n\
+    const currentDomain = window.location.hostname;\n\
+    \n\
+    // Call original fetch\n\
+    const response = await originalFetch.apply(this, args);\n\
+    \n\
+    // Clone the response so we can read it multiple times\n\
+    const clonedResponse = response.clone();\n\
+    \n\
+    // Only process JSON responses from API endpoints\n\
+    const contentType = response.headers.get('content-type');\n\
+    if (contentType && contentType.includes('application/json')) {\n\
+      \n\
+      try {\n\
+        // Read and parse the response\n\
+        const originalData = await clonedResponse.json();\n\
+        \n\
+        // Sanitize the data\n\
+        const sanitizedData = sanitizeObject(originalData, currentDomain);\n\
+        \n\
+        // Create a new response with sanitized data\n\
+        return new Response(JSON.stringify(sanitizedData), {\n\
+          status: response.status,\n\
+          statusText: response.statusText,\n\
+          headers: response.headers\n\
+        });\n\
+      } catch (e) {\n\
+        console.error('[Domain Isolation] Error sanitizing response:', e);\n\
+        return response; // Return original response on error\n\
+      }\n\
+    }\n\
+    \n\
+    return response;\n\
+  };\n\
+  \n\
+  console.log('[Domain Isolation] API response sanitizer installed');\n\
 })();\n\
 EOF\n\
 \n\
