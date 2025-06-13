@@ -82,6 +82,11 @@ RUN if [ -f pnpm-lock.yaml ]; then \
 RUN mkdir -p /app/web/public/images && \
     echo "iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAABmJLR0QA/wD/AP+gvaeTAAADc0lEQVRoge2ZS0hUURjHf2fGcSaViDSJoKKSoiAzaGE9VrXIjRZBm2hVRG2iB0SPVUW7IM0ehLWIdlYQQY+FipWZWj0siJ60ygiziGye8870cWfuPJ1774yO9v/g4pz7+L7z/b/vnnvuOQMtWrT4lxH/OkHQWlpfqdedlo5T49wl1V9eclXkSLCtXeGDNvL5AFwoaa0CXhX0Qdpup8L7ddeiFNlL9gJLbOMCuOWkPXfSGvFvLWlLgAceUwFccdIGnbRG/HuB0x66KcBxJ21RmbsGOA/oveTx75YjwJMKthFgk5N2DICTNiJ8tmnGNdc7acNeOW3jw062J/Cu2HAKmOmkDQggpXxnGy4A9rhpRw5vZBJQWrEYs1qclECn/ekuYIHLbsSN+0CldLZhvQtnaQ7uEVXXgRNSytlCyhe28XrgdgMmcUWpdJr/5CRErbQe2GQbv6CUej0+Pl5XDD/UXQMKdVhpx4AO4KpS6pVdJ6X8KIR4YhveAOxvyGyOKDUBwKuXFxXwAdghhLhn1wkh7hGsEVv9DF4pTsmIMnz6M3mAZUqpm1LKjN1HSvm8XC5fsY0vBY7OH2p0pGJMtwExgA3AGSnlErvO5/M9EkI8tw3vALY3alSVT8mINhznfSNm3wFb/g+0ULIGNQ3a7wZ6hRDdNl1BKbVfCPHWNn4A2Duz2cwCLUMa9GnB7/evklKuUEq9K5VK72dmZsrVtKVSaSkwB3gqhPjmdW4t0DIkzuQdWnGMrvMZdFQxNniMrgDvMrDdQXcAOBTFtypp6SsZkDMg40DGOMZ0+ON0A1uBJNAP9ETxbwhaNgETZkUlwLqI/o1By1YgbdRfBvZE9G8MWnYAl4z664DvX/AJA1qeNupHgb1R/BuDlgfR923AL8w7HImwA2vpNRq/MO9wJMIOLKRH4x4GOqP4NwYt0/b5Y8DhiP6NQcvzRv0VYF8U/8agZR+Qwpw/tkfxbwxa7gLOovn9wN4o/g1By7TZWag+hzQctHwe7T2EudJrCUJDy3NgqGVIg/4RsMUFeYeWwE2rDoxhLvMqbAeOT/fkzYGJsNORT4tn+HzAHvSHAe0I4W7ZMA5cLBaLw+l0Op/L5Ubz+fw787ex6bpbNLuUT6Ct7Z4QYgnQabQV0BMuhxDilVKqh/8gYLO02q92i/8sPwESO6wpKl0UfgAAAABJRU5ErkJggg==" | base64 -d > /app/web/public/images/empty_avatar.png
 
+# Copy domain isolation scripts to public directory
+COPY ./extra/api-interceptor.js /app/web/public/api-interceptor.js
+COPY ./extra/api-response-sanitizer.js /app/web/public/api-response-sanitizer.js
+COPY ./extra/domain-isolation-loader.js /app/web/public/domain-isolation-loader.js
+
 # Final image
 FROM base AS runner
 RUN addgroup --system --gid 1001 system \
@@ -110,234 +115,15 @@ WORKDIR /app
 COPY ./extra/nginx.conf /etc/nginx/conf.d/default.conf
 ENV PORT=80 LEARNHOUSE_PORT=9000 HOSTNAME=0.0.0.0
 COPY ./extra/start.sh /app/start.sh
-RUN chmod +x /app/start.sh
+COPY ./extra/runtime-config-start.sh /app/runtime-config-start.sh
 
-# Add runtime configuration and enhanced patching
-RUN echo '#!/bin/bash\n\
-echo "Generating runtime configuration..."\n\
-mkdir -p /app/web/public\n\
-# Copy domain isolation loader to public folder\n\
-cp /app/web/public/domain-isolation-loader.js /app/web/public/ 2>/dev/null || echo "Domain isolation loader not found in source, generating it..."\n\
-# Generate runtime config\n\
-cat > /app/web/public/runtime-config.js << EOF\n\
-window.RUNTIME_CONFIG = {\n\
-  LEARNHOUSE_API_URL: "${NEXT_PUBLIC_LEARNHOUSE_API_URL:-}",\n\
-  LEARNHOUSE_BACKEND_URL: "${NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL:-}",\n\
-  LEARNHOUSE_DOMAIN: "${NEXT_PUBLIC_LEARNHOUSE_DOMAIN:-}",\n\
-  LEARNHOUSE_DEFAULT_ORG: "${NEXT_PUBLIC_LEARNHOUSE_DEFAULT_ORG:-default}",\n\
-  LEARNHOUSE_MULTI_ORG: "${NEXT_PUBLIC_LEARNHOUSE_MULTI_ORG:-false}",\n\
-  LEARNHOUSE_TOP_DOMAIN: "${NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN:-}"\n\
-}\n\
-EOF\n\
-\n\
-echo "Runtime configuration generated successfully"\n\
-\n\
-# Create an enhanced utility script to override all network requests with domain isolation\n\
-cat > /app/web/public/api-interceptor.js << EOF\n\
-(function() {\n\
-  // Get the current domain\n\
-  const currentDomain = window.location.hostname;\n\
-  console.log("[Domain Isolation] Current domain:", currentDomain);\n\
-  \n\
-  // Check if RUNTIME_CONFIG is available\n\
-  if (!window.RUNTIME_CONFIG) {\n\
-    console.warn("[Domain Isolation] Runtime config not found, creating empty one.");\n\
-    window.RUNTIME_CONFIG = {};\n\
-  }\n\
-  \n\
-  // Store the domain info globally\n\
-  window.LEARNHOUSE_DOMAIN = currentDomain;\n\
-  \n\
-  // 1. Intercept fetch API\n\
-  const originalFetch = window.fetch;\n\
-  window.fetch = function(url, options) {\n\
-    if (typeof url === "string") {\n\
-      try {\n\
-        // Handle both absolute and relative URLs\n\
-        const urlObj = new URL(url, window.location.origin);\n\
-        const targetDomain = urlObj.hostname;\n\
-        \n\
-        // If URL has a different domain than current domain, rewrite it\n\
-        if (targetDomain !== currentDomain) {\n\
-          // Allow external APIs like umami\n\
-          if (targetDomain.includes('api-gateway.umami.dev')) {\n\
-            return originalFetch(url, options);\n\
-          }\n\
-          \n\
-          console.warn("[Domain Isolation] Redirecting request to current domain:", url);\n\
-          const newUrl = url.replace(/https?:\\/\\/[^\\/]+/, window.location.origin);\n\
-          console.log("[Domain Isolation] New URL:", newUrl);\n\
-          return originalFetch(newUrl, options);\n\
-        }\n\
-      } catch (e) {\n\
-        console.error("[Domain Isolation] Error processing URL:", e);\n\
-      }\n\
-    }\n\
-    return originalFetch(url, options);\n\
-  };\n\
-  \n\
-  // 2. Intercept XMLHttpRequest\n\
-  const originalXHROpen = XMLHttpRequest.prototype.open;\n\
-  XMLHttpRequest.prototype.open = function(method, url, ...rest) {\n\
-    if (typeof url === "string") {\n\
-      try {\n\
-        const urlObj = new URL(url, window.location.origin);\n\
-        const targetDomain = urlObj.hostname;\n\
-        \n\
-        if (targetDomain !== currentDomain) {\n\
-          // Allow external APIs\n\
-          if (targetDomain.includes('api-gateway.umami.dev')) {\n\
-            return originalXHROpen.call(this, method, url, ...rest);\n\
-          }\n\
-          \n\
-          console.warn("[Domain Isolation] Redirecting XHR to current domain:", url);\n\
-          const newUrl = url.replace(/https?:\\/\\/[^\\/]+/, window.location.origin);\n\
-          console.log("[Domain Isolation] New XHR URL:", newUrl);\n\
-          return originalXHROpen.call(this, method, newUrl, ...rest);\n\
-        }\n\
-      } catch (e) {\n\
-        console.error("[Domain Isolation] Error processing XHR URL:", e);\n\
-      }\n\
-    }\n\
-    return originalXHROpen.call(this, method, url, ...rest);\n\
-  };\n\
-  \n\
-  // 3. Fix Next.js chunk loading issues\n\
-  const originalReactDOMCreateScriptHook = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');\n\
-  if (originalReactDOMCreateScriptHook) {\n\
-    Object.defineProperty(HTMLScriptElement.prototype, 'src', {\n\
-      get: originalReactDOMCreateScriptHook.get,\n\
-      set: function(url) {\n\
-        if (typeof url === 'string') {\n\
-          try {\n\
-            const urlObj = new URL(url, window.location.origin);\n\
-            const targetDomain = urlObj.hostname;\n\
-            \n\
-            if (targetDomain !== currentDomain && url.includes('/next/static/chunks/')) {\n\
-              const newUrl = url.replace(/https?:\\/\\/[^\\/]+/, window.location.origin);\n\
-              console.warn("[Domain Isolation] Redirecting script src to current domain:", url);\n\
-              console.log("[Domain Isolation] New script src:", newUrl);\n\
-              return originalReactDOMCreateScriptHook.set.call(this, newUrl);\n\
-            }\n\
-          } catch (e) {\n\
-            console.error("[Domain Isolation] Error processing script URL:", e);\n\
-          }\n\
-        }\n\
-        return originalReactDOMCreateScriptHook.set.call(this, url);\n\
-      },\n\
-      configurable: true\n\
-    });\n\
-  }\n\
-  \n\
-  console.log("[Domain Isolation] Complete domain isolation system installed");\n\
-})();\n\
-EOF\n\
-\n\
-# Create API response sanitizer\n\
-cat > /app/web/public/api-response-sanitizer.js << EOF\n\
-/**\n\
- * API Response Sanitizer\n\
- * \n\
- * This script specifically handles API responses to ensure they don't contain\n\
- * URLs pointing to the wrong domain.\n\
- */\n\
-(function() {\n\
-  console.log('[Domain Isolation] Installing API response sanitizer...');\n\
-  \n\
-  // Save reference to the original fetch\n\
-  const originalFetch = window.fetch;\n\
-\n\
-  /**\n\
-   * Recursively sanitize objects to replace URLs from wrong domains\n\
-   */\n\
-  function sanitizeObject(obj, currentDomain) {\n\
-    if (!obj || typeof obj !== 'object') return obj;\n\
-    \n\
-    // Handle arrays\n\
-    if (Array.isArray(obj)) {\n\
-      return obj.map(item => sanitizeObject(item, currentDomain));\n\
-    }\n\
-    \n\
-    // Handle objects\n\
-    const result = {};\n\
-    \n\
-    for (const [key, value] of Object.entries(obj)) {\n\
-      // Check if this is a URL string value\n\
-      if (typeof value === 'string' && \n\
-          (value.startsWith('http://') || value.startsWith('https://'))) {\n\
-        try {\n\
-          const url = new URL(value);\n\
-          if (url.hostname !== currentDomain && \n\
-              !url.hostname.includes('api-gateway.umami.dev')) {\n\
-            console.log(`[Sanitizer] Found cross-domain URL: ${value}`);\n\
-            const newValue = value.replace(url.hostname, currentDomain);\n\
-            result[key] = newValue;\n\
-            continue;\n\
-          }\n\
-        } catch (e) {\n\
-          // Not a valid URL, keep original value\n\
-        }\n\
-      }\n\
-      \n\
-      // Process nested objects/arrays\n\
-      if (value && typeof value === 'object') {\n\
-        result[key] = sanitizeObject(value, currentDomain);\n\
-      } else {\n\
-        result[key] = value;\n\
-      }\n\
-    }\n\
-    \n\
-    return result;\n\
-  }\n\
-  \n\
-  // Override fetch to sanitize responses\n\
-  window.fetch = async function(...args) {\n\
-    const currentDomain = window.location.hostname;\n\
-    \n\
-    // Call original fetch\n\
-    const response = await originalFetch.apply(this, args);\n\
-    \n\
-    // Clone the response so we can read it multiple times\n\
-    const clonedResponse = response.clone();\n\
-    \n\
-    // Only process JSON responses from API endpoints\n\
-    const contentType = response.headers.get('content-type');\n\
-    if (contentType && contentType.includes('application/json')) {\n\
-      \n\
-      try {\n\
-        // Read and parse the response\n\
-        const originalData = await clonedResponse.json();\n\
-        \n\
-        // Sanitize the data\n\
-        const sanitizedData = sanitizeObject(originalData, currentDomain);\n\
-        \n\
-        // Create a new response with sanitized data\n\
-        return new Response(JSON.stringify(sanitizedData), {\n\
-          status: response.status,\n\
-          statusText: response.statusText,\n\
-          headers: response.headers\n\
-        });\n\
-      } catch (e) {\n\
-        console.error('[Domain Isolation] Error sanitizing response:', e);\n\
-        return response; // Return original response on error\n\
-      }\n\
-    }\n\
-    \n\
-    return response;\n\
-  };\n\
-  \n\
-  console.log('[Domain Isolation] API response sanitizer installed');\n\
-})();\n\
-EOF\n\
-\n\
-echo "Enhanced patching of NextAuth cookies and domains..."\n\
-find /app/web/.next -type f -name "*.js" -exec sed -i "s/domain:[^,}]*,/domain: undefined,/g" {} \\;\n\
-find /app/web/.next -type f -name "*.js" -exec sed -i "s/domain: *process.env.LEARNHOUSE_COOKIE_DOMAIN/domain: undefined/g" {} \\;\n\
-find /app/web/.next -type f -name "*.js" -exec sed -i "s/\.domain\s*=\s*[^;]*;/\.domain = undefined;/g" {} \\;\n\
-echo "Cookie domain patches complete."\n\
-\n\
-echo "Starting application..."\n\
-sh /app/start.sh' > /app/runtime-config-start.sh && chmod +x /app/runtime-config-start.sh
+# Make the runtime script executable
+RUN chmod +x /app/start.sh && chmod +x /app/runtime-config-start.sh
+
+# Ensure the isolation scripts are available in the runner stage
+COPY ./extra/api-interceptor.js /app/extra/api-interceptor.js
+COPY ./extra/api-response-sanitizer.js /app/extra/api-response-sanitizer.js
+COPY ./extra/domain-isolation-loader.js /app/extra/domain-isolation-loader.js
 
 # Use the runtime config script
 CMD ["/app/runtime-config-start.sh"]
