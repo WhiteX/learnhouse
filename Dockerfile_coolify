@@ -61,15 +61,31 @@ ENV PORT=80 LEARNHOUSE_PORT=9000 HOSTNAME=0.0.0.0
 COPY ./extra/start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
-# Add enhanced URL and domain patching
+# Add runtime configuration and enhanced patching
 RUN echo '#!/bin/bash\n\
+echo "Generating runtime configuration..."\n\
+mkdir -p /app/web/public\n\
+cat > /app/web/public/runtime-config.js << EOF\n\
+window.RUNTIME_CONFIG = {\n\
+  LEARNHOUSE_API_URL: "${NEXT_PUBLIC_LEARNHOUSE_API_URL:-}",\n\
+  LEARNHOUSE_BACKEND_URL: "${NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL:-}",\n\
+  LEARNHOUSE_DOMAIN: "${NEXT_PUBLIC_LEARNHOUSE_DOMAIN:-}",\n\
+  LEARNHOUSE_DEFAULT_ORG: "${NEXT_PUBLIC_LEARNHOUSE_DEFAULT_ORG:-default}",\n\
+  LEARNHOUSE_MULTI_ORG: "${NEXT_PUBLIC_LEARNHOUSE_MULTI_ORG:-false}",\n\
+  LEARNHOUSE_TOP_DOMAIN: "${NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN:-}"\n\
+}\n\
+EOF\n\
+\n\
+echo "Runtime configuration generated successfully"\n\
+\n\
 echo "Enhanced patching of NextAuth cookies and domains..."\n\
 find /app/web/.next -type f -name "*.js" -exec sed -i "s/domain:[^,}]*,/domain: undefined,/g" {} \\;\n\
 find /app/web/.next -type f -name "*.js" -exec sed -i "s/domain: *process.env.LEARNHOUSE_COOKIE_DOMAIN/domain: undefined/g" {} \\;\n\
 find /app/web/.next -type f -name "*.js" -exec sed -i "s/\.domain\s*=\s*[^;]*;/\.domain = undefined;/g" {} \\;\n\
 echo "Cookie domain patches complete."\n\
+\n\
 echo "Starting application..."\n\
-sh /app/start.sh' > /app/patched-start.sh && chmod +x /app/patched-start.sh
+sh /app/start.sh' > /app/runtime-config-start.sh && chmod +x /app/runtime-config-start.sh
 
-# Use the patched start script
-CMD ["/app/patched-start.sh"]
+# Use the runtime config script
+CMD ["/app/runtime-config-start.sh"]
