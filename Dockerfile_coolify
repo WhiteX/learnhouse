@@ -13,8 +13,41 @@ RUN curl -fsSL https://deb.nodesource.com/setup_21.x | bash - \
     && npm install -g corepack pm2
 
 # Frontend Build
-FROM base AS deps
+FROM base AS builder
 
+WORKDIR /app/web
+
+# Install dependencies based on the preferred package manager
+COPY ./apps/web/package.json ./apps/web/pnpm-lock.yaml* ./apps/web/.npmrc* ./
+# Omit --production flag for TypeScript devDependencies
+RUN \
+  if [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
+  elif [ -f package-lock.json ]; then npm ci; \
+  else echo "Warning: Lockfile not found. It is recommended to commit lockfiles to version control." && npm install; \
+  fi
+
+COPY ./apps/web/app ./app
+COPY ./apps/web/components ./components
+COPY ./apps/web/hooks ./hooks
+COPY ./apps/web/lib ./lib
+COPY ./apps/web/pages ./pages
+COPY ./apps/web/public ./public
+COPY ./apps/web/services ./services
+COPY ./apps/web/styles ./styles
+COPY ./apps/web/types ./types
+COPY ./apps/web/utils ./utils
+COPY ./apps/web/next.config.js .
+COPY ./apps/web/tsconfig.json .
+COPY ./apps/web/tailwind.config.js .
+COPY ./apps/web/postcss.config.js .
+COPY ./apps/web/components.json .
+COPY ./apps/web/middleware.ts .
+COPY ./apps/web/instrumentation.ts .
+
+# Remove any environment files that might interfere
+RUN rm -f .env*
+
+# Environment variables must be present at build time
 ARG NEXT_PUBLIC_LEARNHOUSE_API_URL
 ARG NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL
 ARG NEXT_PUBLIC_LEARNHOUSE_DOMAIN
@@ -29,63 +62,16 @@ ENV NEXT_PUBLIC_LEARNHOUSE_DEFAULT_ORG=${NEXT_PUBLIC_LEARNHOUSE_DEFAULT_ORG}
 ENV NEXT_PUBLIC_LEARNHOUSE_MULTI_ORG=${NEXT_PUBLIC_LEARNHOUSE_MULTI_ORG}
 ENV NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN=${NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN}
 
-WORKDIR /app/web
-COPY ./apps/web/package.json ./apps/web/pnpm-lock.yaml* ./
-COPY ./extra/patch-typescript.sh /app/patch-typescript.sh
-COPY ./apps/web /app/web
-RUN rm -f .env*
+# Next.js collects completely anonymous telemetry data about general usage
+# Disable telemetry at build time
+ENV NEXT_TELEMETRY_DISABLED 1
 
-# Patch TypeScript issues using our comprehensive script
-RUN chmod +x /app/patch-typescript.sh && /app/patch-typescript.sh
-
-# Create a modified next.config.js that completely disables type checking
-RUN if [ -f next.config.js ]; then \
-      cat next.config.js > next.config.js.bak && \
-      echo "console.log('Using custom Next.js config with TypeScript checking disabled');" > next.config.js && \
-      echo "const originalConfig = require('./next.config.js.bak');" >> next.config.js && \
-      echo "module.exports = {" >> next.config.js && \
-      echo "  ...originalConfig," >> next.config.js && \
-      echo "  typescript: { ignoreBuildErrors: true }," >> next.config.js && \
-      echo "  eslint: { ignoreDuringBuilds: true }," >> next.config.js && \
-      echo "  webpack: (config, options) => {" >> next.config.js && \
-      echo "    config.infrastructureLogging = { level: 'error' };" >> next.config.js && \
-      echo "    if (originalConfig.webpack) {" >> next.config.js && \
-      echo "      return originalConfig.webpack(config, options);" >> next.config.js && \
-      echo "    }" >> next.config.js && \
-      echo "    return config;" >> next.config.js && \
-      echo "  }" >> next.config.js && \
-      echo "};" >> next.config.js; \
-    else \
-      echo "console.log('Creating new Next.js config with TypeScript checking disabled');" > next.config.js && \
-      echo "module.exports = {" >> next.config.js && \
-      echo "  typescript: { ignoreBuildErrors: true }," >> next.config.js && \
-      echo "  eslint: { ignoreDuringBuilds: true }," >> next.config.js && \
-      echo "  webpack: (config) => {" >> next.config.js && \
-      echo "    config.infrastructureLogging = { level: 'error' };" >> next.config.js && \
-      echo "    return config;" >> next.config.js && \
-      echo "  }" >> next.config.js && \
-      echo "};" >> next.config.js; \
-    fi
-
-# Allow build to continue with type errors
-RUN if [ -f pnpm-lock.yaml ]; then \
-      corepack enable pnpm && \
-      pnpm i --frozen-lockfile && \
-      pnpm add @types/react@latest @types/node@latest next-navigation@latest typescript@latest --save-dev && \
-      echo '{ "scripts": { "build:ignore-ts": "NEXT_TELEMETRY_DISABLED=1 SKIP_TYPE_CHECK=true TS_NODE_TRANSPILE_ONLY=true next build" } }' > .npmrc-scripts.json && \
-      pnpm pkg set scripts.build:ignore-ts="NEXT_TELEMETRY_DISABLED=1 SKIP_TYPE_CHECK=true TS_NODE_TRANSPILE_ONLY=true next build" && \
-      NODE_OPTIONS=--max-old-space-size=6144 NEXT_IGNORE_TYPE_ERROR=true SKIP_TYPE_CHECK=true TS_NODE_TRANSPILE_ONLY=true pnpm run build:ignore-ts; \
-    else echo "Lockfile not found." && exit 1; \
-    fi
-
-# Make sure the images directory exists in public folder with a placeholder avatar
-RUN mkdir -p /app/web/public/images && \
-    echo "iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAABmJLR0QA/wD/AP+gvaeTAAADc0lEQVRoge2ZS0hUURjHf2fGcSaViDSJoKKSoiAzaGE9VrXIjRZBm2hVRG2iB0SPVUW7IM0ehLWIdlYQQY+FipWZWj0siJ60ygiziGye8870cWfuPJ1774yO9v/g4pz7+L7z/b/vnnvuOQMtWrT4lxH/OkHQWlpfqdedlo5T49wl1V9eclXkSLCtXeGDNvL5AFwoaa0CXhX0Qdpup8L7ddeiFNlL9gJLbOMCuOWkPXfSGvFvLWlLgAceUwFccdIGnbRG/HuB0x66KcBxJ21RmbsGOA/oveTx75YjwJMKthFgk5N2DICTNiJ8tmnGNdc7acNeOW3jw062J/Cu2HAKmOmkDQggpXxnGy4A9rhpRw5vZBJQWrEYs1qclECn/ekuYIHLbsSN+0CldLZhvQtnaQ7uEVXXgRNSytlCyhe28XrgdgMmcUWpdJr/5CRErbQe2GQbv6CUej0+Pl5XDD/UXQMKdVhpx4AO4KpS6pVdJ6X8KIR4YhveAOxvyGyOKDUBwKuXFxXwAdghhLhn1wkh7hGsEVv9DF4pTsmIMnz6M3mAZUqpm1LKjN1HSvm8XC5fsY0vBY7OH2p0pGJMtwExgA3AGSnlErvO5/M9EkI8tw3vALY3alSVT8mINhznfSNm3wFb/g+0ULIGNQ3a7wZ6hRDdNl1BKbVfCPHWNn4A2Duz2cwCLUMa9GnB7/evklKuUEq9K5VK72dmZsrVtKVSaSkwB3gqhPjmdW4t0DIkzuQdWnGMrvMZdFQxNniMrgDvMrDdQXcAOBTFtypp6SsZkDMg40DGOMZ0+ON0A1uBJNAP9ETxbwhaNgETZkUlwLqI/o1By1YgbdRfBvZE9G8MWnYAl4z664DvX/AJA1qeNupHgb1R/BuDlgfR923AL8w7HImwA2vpNRq/MO9wJMIOLKRH4x4GOqP4NwYt0/b5Y8DhiP6NQcvzRv0VYF8U/8agZR+Qwpw/tkfxbwxa7gLOovn9wN4o/g1By7TZWag+hzQctHwe7T2EudJrCUJDy3NgqGVIg/4RsMUFeYeWwE2rDoxhLvMqbAeOT/fkzYGJsNORT4tn+HzAHvSHAe0I4W7ZMA5cLBaLw+l0Op/L5Ubz+fw787ex6bpbNLuUT6Ct7Z4QYgnQabQV0BMuhxDilVKqh/8gYLO02q92i/8sPwESO6wpKl0UfgAAAABJRU5ErkJggg==" | base64 -d > /app/web/public/images/empty_avatar.png
-
-# Copy domain isolation scripts to public directory
-COPY ./extra/api-interceptor.js /app/web/public/api-interceptor.js
-COPY ./extra/api-response-sanitizer.js /app/web/public/api-response-sanitizer.js
-COPY ./extra/domain-isolation-loader.js /app/web/public/domain-isolation-loader.js
+# Build Next.js based on the preferred package manager
+RUN \
+  if [ -f pnpm-lock.yaml ]; then pnpm build; \
+  elif [ -f package-lock.json ]; then npm run build; \
+  else npm run build; \
+  fi
 
 # Final image
 FROM base AS runner
@@ -93,20 +79,39 @@ RUN addgroup --system --gid 1001 system \
     && adduser --system --uid 1001 app \
     && mkdir .next \
     && chown app:system .next
-COPY --from=deps /app/web/public ./app/web/public
-COPY --from=deps --chown=app:system /app/web/.next/standalone ./app/web/
-COPY --from=deps --chown=app:system /app/web/.next/static ./app/web/.next/static
+
+COPY --from=builder /app/web/public ./app/web/public
+
+# Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing  
+COPY --from=builder --chown=app:system /app/web/.next/standalone ./app/web/
+COPY --from=builder --chown=app:system /app/web/.next/static ./app/web/.next/static
+
+# Environment variables must be redefined at run time
+ARG NEXT_PUBLIC_LEARNHOUSE_API_URL
+ARG NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL
+ARG NEXT_PUBLIC_LEARNHOUSE_DOMAIN
+ARG NEXT_PUBLIC_LEARNHOUSE_DEFAULT_ORG
+ARG NEXT_PUBLIC_LEARNHOUSE_MULTI_ORG
+ARG NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN
+
+ENV NEXT_PUBLIC_LEARNHOUSE_API_URL=${NEXT_PUBLIC_LEARNHOUSE_API_URL}
+ENV NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL=${NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL}
+ENV NEXT_PUBLIC_LEARNHOUSE_DOMAIN=${NEXT_PUBLIC_LEARNHOUSE_DOMAIN}
+ENV NEXT_PUBLIC_LEARNHOUSE_DEFAULT_ORG=${NEXT_PUBLIC_LEARNHOUSE_DEFAULT_ORG}
+ENV NEXT_PUBLIC_LEARNHOUSE_MULTI_ORG=${NEXT_PUBLIC_LEARNHOUSE_MULTI_ORG}
+ENV NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN=${NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN}
 
 # Backend Build
 WORKDIR /app/api
-COPY ./apps/api/pyproject.toml ./
 COPY ./apps/api/uv.lock ./
+COPY ./apps/api/pyproject.toml ./
 
-# Install dependencies with proper flags and fallback to pip if needed
+# Install dependencies with uv (fallback to pip if needed)
 RUN pip install --upgrade pip && \
     pip install uv && \
-    (uv pip sync --system --python=python3.12 || pip install -e .) && \
-    pip install uvicorn  # Ensure at least the ASGI server is available
+    (uv sync --system || pip install -e .) && \
+    pip install uvicorn
 
 COPY ./apps/api ./
 
@@ -115,15 +120,9 @@ WORKDIR /app
 COPY ./extra/nginx.conf /etc/nginx/conf.d/default.conf
 ENV PORT=80 LEARNHOUSE_PORT=9000 HOSTNAME=0.0.0.0
 COPY ./extra/start.sh /app/start.sh
-COPY ./extra/runtime-config-start.sh /app/runtime-config-start.sh
 
-# Make the runtime script executable
-RUN chmod +x /app/start.sh && chmod +x /app/runtime-config-start.sh
+# Make the start script executable
+RUN chmod +x /app/start.sh
 
-# Ensure the isolation scripts are available in the runner stage
-COPY ./extra/api-interceptor.js /app/extra/api-interceptor.js
-COPY ./extra/api-response-sanitizer.js /app/extra/api-response-sanitizer.js
-COPY ./extra/domain-isolation-loader.js /app/extra/domain-isolation-loader.js
-
-# Use the runtime config script
-CMD ["/app/runtime-config-start.sh"]
+# Use the start script
+CMD ["sh", "/app/start.sh"]
