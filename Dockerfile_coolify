@@ -18,34 +18,16 @@ FROM base AS builder
 WORKDIR /app/web
 
 # Install dependencies based on the preferred package manager
-COPY ./apps/web/package.json ./apps/web/pnpm-lock.yaml* ./apps/web/.npmrc* ./
+COPY ./apps/web/package.json ./apps/web/pnpm-lock.yaml* ./
+COPY ./apps/web /app/web
+# Remove any environment files that might interfere
+RUN rm -f .env* 
 # Omit --production flag for TypeScript devDependencies
 RUN \
   if [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci; \
   else echo "Warning: Lockfile not found. It is recommended to commit lockfiles to version control." && npm install; \
   fi
-
-COPY ./apps/web/app ./app
-COPY ./apps/web/components ./components
-COPY ./apps/web/hooks ./hooks
-COPY ./apps/web/lib ./lib
-COPY ./apps/web/pages ./pages
-COPY ./apps/web/public ./public
-COPY ./apps/web/services ./services
-COPY ./apps/web/styles ./styles
-COPY ./apps/web/types ./types
-COPY ./apps/web/utils ./utils
-COPY ./apps/web/next.config.js .
-COPY ./apps/web/tsconfig.json .
-COPY ./apps/web/tailwind.config.js .
-COPY ./apps/web/postcss.config.js .
-COPY ./apps/web/components.json .
-COPY ./apps/web/middleware.ts .
-COPY ./apps/web/instrumentation.ts .
-
-# Remove any environment files that might interfere
-RUN rm -f .env*
 
 # Environment variables must be present at build time
 ARG NEXT_PUBLIC_LEARNHOUSE_API_URL
