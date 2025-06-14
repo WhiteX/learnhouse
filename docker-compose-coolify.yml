@@ -57,8 +57,6 @@ services:
       interval: 2s
       timeout: 10s
       retries: 10
-    labels:
-      - "traefik.http.services.${DEPLOYMENT_NAME:-learnhouse}.loadbalancer.server.port=80"
 
   db:
     image: postgres:16-alpine
