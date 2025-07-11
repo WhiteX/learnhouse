@@ -17,8 +17,9 @@ from src.db.courses.courses import (
     CourseCreate,
     CourseRead,
     CourseUpdate,
-    FullCourseReadWithTrail,
+    FullCourseRead,
     AuthorWithRole,
+    ThumbnailType,
 )
 from src.security.rbac.rbac import (
     authorization_verify_based_on_roles_and_authorship,
@@ -129,7 +130,7 @@ async def get_course_meta(
     with_unpublished_activities: bool,
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
-) -> FullCourseReadWithTrail:
+) -> FullCourseRead:
     # Avoid circular import
     from src.services.courses.chapters import get_course_chapters
 
@@ -156,30 +157,10 @@ async def get_course_meta(
     # RBAC check
     await rbac_check(request, course.course_uuid, current_user, "read", db_session)
 
-    # Start async tasks concurrently
-    tasks = []
-    
-    # Task 1: Get course chapters
-    async def get_chapters():
-        # Ensure course.id is not None
-        if course.id is None:
-            return []
-        return await get_course_chapters(request, course.id, db_session, current_user, with_unpublished_activities)
-    
-    # Task 2: Get user trail (only for authenticated users)
-    async def get_trail():
-        if isinstance(current_user, AnonymousUser):
-            return None
-        return await get_user_trail_with_orgid(
-            request, current_user, course.org_id, db_session
-        )
-    
-    # Add tasks to the list
-    tasks.append(get_chapters())
-    tasks.append(get_trail())
-    
-    # Run all tasks concurrently
-    chapters, trail = await asyncio.gather(*tasks)
+    # Get course chapters
+    chapters = []
+    if course.id is not None:
+        chapters = await get_course_chapters(request, course.id, db_session, current_user, with_unpublished_activities)
     
     # Convert to AuthorWithRole objects
     authors = [
@@ -193,14 +174,14 @@ async def get_course_meta(
         for resource_author, user in author_results
     ]
     
-    # Create course read model
-    course_read = CourseRead(**course.model_dump(), authors=authors)
-    
-    return FullCourseReadWithTrail(
-        **course_read.model_dump(),
-        chapters=chapters,
-        trail=trail,
+    # Create course read model with chapters
+    course_read = FullCourseRead(
+        **course.model_dump(),
+        authors=authors,
+        chapters=chapters
     )
+    
+    return course_read
 
 
 async def get_courses_orgslug(
@@ -418,6 +399,7 @@ async def create_course(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
     thumbnail_file: UploadFile | None = None,
+    thumbnail_type: ThumbnailType = ThumbnailType.IMAGE,
 ):
     course = Course.model_validate(course_object)
 
@@ -444,10 +426,16 @@ async def create_course(
         await upload_thumbnail(
             thumbnail_file, name_in_disk, org.org_uuid, course.course_uuid  # type: ignore
         )
-        course.thumbnail_image = name_in_disk
-
+        if thumbnail_type == ThumbnailType.IMAGE:
+            course.thumbnail_image = name_in_disk
+            course.thumbnail_type = ThumbnailType.IMAGE
+        elif thumbnail_type == ThumbnailType.VIDEO:
+            course.thumbnail_video = name_in_disk
+            course.thumbnail_type = ThumbnailType.VIDEO
     else:
         course.thumbnail_image = ""
+        course.thumbnail_video = ""
+        course.thumbnail_type = ThumbnailType.IMAGE
 
     # Insert course
     db_session.add(course)
@@ -506,6 +494,7 @@ async def update_course_thumbnail(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
     thumbnail_file: UploadFile | None = None,
+    thumbnail_type: ThumbnailType = ThumbnailType.IMAGE,
 ):
     statement = select(Course).where(Course.course_uuid == course_uuid)
     course = db_session.exec(statement).first()
@@ -534,7 +523,12 @@ async def update_course_thumbnail(
 
     # Update course
     if name_in_disk:
-        course.thumbnail_image = name_in_disk
+        if thumbnail_type == ThumbnailType.IMAGE:
+            course.thumbnail_image = name_in_disk
+            course.thumbnail_type = ThumbnailType.IMAGE if not course.thumbnail_video else ThumbnailType.BOTH
+        elif thumbnail_type == ThumbnailType.VIDEO:
+            course.thumbnail_video = name_in_disk
+            course.thumbnail_type = ThumbnailType.VIDEO if not course.thumbnail_image else ThumbnailType.BOTH
     else:
         raise HTTPException(
             status_code=500,

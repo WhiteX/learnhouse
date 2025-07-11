@@ -1,16 +1,16 @@
 'use client'
 import Link from 'next/link'
 import React, { useEffect, useState } from 'react'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, getAPIUrl } from '@services/config/config'
 import PageLoading from '@components/Objects/Loaders/PageLoading'
-import { revalidateTags } from '@services/utils/ts/requests'
+import { revalidateTags, swrFetcher } from '@services/utils/ts/requests'
 import ActivityIndicators from '@components/Pages/Courses/ActivityIndicators'
 import { useRouter } from 'next/navigation'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import {
   getCourseThumbnailMediaDirectory,
 } from '@services/media/media'
-import { ArrowRight, Backpack, Check, File, Sparkles, StickyNote, Video, Square } from 'lucide-react'
+import { ArrowRight, Backpack, Check, File, Sparkles, StickyNote, Video, Square, Image as ImageIcon, Layers } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { CourseProvider } from '@components/Contexts/CourseContext'
 import { useMediaQuery } from 'usehooks-ts'
@@ -18,16 +18,27 @@ import CoursesActions from '@components/Objects/Courses/CourseActions/CoursesAct
 import CourseActionsMobile from '@components/Objects/Courses/CourseActions/CourseActionsMobile'
 import CourseAuthors from '@components/Objects/Courses/CourseAuthors/CourseAuthors'
 import CourseBreadcrumbs from '@components/Pages/Courses/CourseBreadcrumbs'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
+import useSWR from 'swr'
 
 const CourseClient = (props: any) => {
   const [learnings, setLearnings] = useState<any>([])
   const [expandedChapters, setExpandedChapters] = useState<{[key: string]: boolean}>({})
+  const [activeThumbnailType, setActiveThumbnailType] = useState<'image' | 'video'>('image')
   const courseuuid = props.courseuuid
   const orgslug = props.orgslug
   const course = props.course
   const org = useOrg() as any
   const router = useRouter()
   const isMobile = useMediaQuery('(max-width: 768px)')
+  const session = useLHSession() as any;
+  const access_token = session?.data?.tokens?.access_token;
+
+  // Add SWR for trail data
+  const { data: trailData } = useSWR(
+    `${getAPIUrl()}trail/org/${org?.id}/trail`,
+    (url) => swrFetcher(url, access_token)
+  );
 
   console.log(course)
 
@@ -66,8 +77,9 @@ const CourseClient = (props: any) => {
     if (course?.chapters) {
       const totalActivities = course.chapters.reduce((sum: number, chapter: any) => sum + (chapter.activities?.length || 0), 0)
       const defaultExpanded: {[key: string]: boolean} = {}
-      course.chapters.forEach((chapter: any) => {
-        defaultExpanded[chapter.chapter_uuid] = totalActivities <= 5
+      course.chapters.forEach((chapter: any, idx: number) => {
+        // Always expand the first chapter
+        defaultExpanded[chapter.chapter_uuid] = idx === 0 ? true : totalActivities <= 5
       })
       setExpandedChapters(defaultExpanded)
     }
@@ -104,9 +116,13 @@ const CourseClient = (props: any) => {
   }
 
   const isActivityDone = (activity: any) => {
-    const run = course?.trail?.runs?.find(
-      (run: any) => run.course_id == course.id
-    )
+    const cleanCourseUuid = course.course_uuid?.replace('course_', '');
+    const run = trailData?.runs?.find(
+      (run: any) => {
+        const cleanRunCourseUuid = run.course?.course_uuid?.replace('course_', '');
+        return cleanRunCourseUuid === cleanCourseUuid;
+      }
+    );
     if (run) {
       return run.steps.find((step: any) => step.activity_id == activity.id)
     }
@@ -140,28 +156,122 @@ const CourseClient = (props: any) => {
 
             <div className="flex flex-col md:flex-row gap-8 pt-2">
               <div className="w-full md:w-3/4 space-y-4">
-                {props.course?.thumbnail_image && org ? (
-                  <div
-                    className="inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl relative w-full h-[200px] md:h-[400px] bg-cover bg-center"
-                    style={{
-                      backgroundImage: `url(${getCourseThumbnailMediaDirectory(
-                        org?.org_uuid,
-                        course?.course_uuid,
-                        course?.thumbnail_image
-                      )})`,
-                    }}
-                  ></div>
-                ) : (
-                  <div
-                    className="inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl relative w-full h-[400px] bg-cover bg-center"
-                    style={{
-                      backgroundImage: `url('../empty_thumbnail.png')`,
-                      backgroundSize: 'auto',
-                    }}
-                  ></div>
-                )}
+                {(() => {
+                  const showVideo = course.thumbnail_type === 'video' || (course.thumbnail_type === 'both' && activeThumbnailType === 'video');
+                  const showImage = course.thumbnail_type === 'image' || (course.thumbnail_type === 'both' && activeThumbnailType === 'image') || !course.thumbnail_type;
 
-                {course?.trail?.runs?.find((run: any) => run.course_id == course.id) && (
+                  if (showVideo && course.thumbnail_video) {
+                    return (
+                      <div className="relative inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl w-full h-[200px] md:h-[400px]">
+                        {course.thumbnail_type === 'both' && (
+                          <div className="absolute top-3 right-3 z-10">
+                            <div className="bg-black/20 backdrop-blur-sm rounded-lg p-1 flex space-x-1">
+                              <button
+                                onClick={() => setActiveThumbnailType('image')}
+                                className={`flex items-center px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                                  activeThumbnailType === 'image'
+                                    ? 'bg-white/90 text-gray-900 shadow-sm'
+                                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                                }`}
+                              >
+                                <ImageIcon size={12} className="mr-1" />
+                                Image
+                              </button>
+                              <button
+                                onClick={() => setActiveThumbnailType('video')}
+                                className={`flex items-center px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                                  activeThumbnailType === 'video'
+                                    ? 'bg-white/90 text-gray-900 shadow-sm'
+                                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                                }`}
+                              >
+                                <Video size={12} className="mr-1" />
+                                Video
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        <div className="w-full h-full">
+                          <video
+                            src={getCourseThumbnailMediaDirectory(
+                              org?.org_uuid,
+                              course?.course_uuid,
+                              course?.thumbnail_video
+                            )}
+                            className="w-full h-full bg-black rounded-lg"
+                            controls
+                            autoPlay
+                            muted
+                            preload="metadata"
+                            playsInline
+                          />
+                        </div>
+                      </div>
+                    );
+                  } else if (showImage && course.thumbnail_image) {
+                    return (
+                      <div className="relative inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl w-full h-[200px] md:h-[400px] bg-cover bg-center"
+                        style={{
+                          backgroundImage: `url(${getCourseThumbnailMediaDirectory(
+                            org?.org_uuid,
+                            course?.course_uuid,
+                            course?.thumbnail_image
+                          )})`,
+                        }}
+                      >
+                        {course.thumbnail_type === 'both' && (
+                          <div className="absolute top-3 right-3 z-10">
+                            <div className="bg-black/20 backdrop-blur-sm rounded-lg p-1 flex space-x-1">
+                              <button
+                                onClick={() => setActiveThumbnailType('image')}
+                                className={`flex items-center px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                                  activeThumbnailType === 'image'
+                                    ? 'bg-white/90 text-gray-900 shadow-sm'
+                                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                                }`}
+                              >
+                                <ImageIcon size={12} className="mr-1" />
+                                Image
+                              </button>
+                              <button
+                                onClick={() => setActiveThumbnailType('video')}
+                                className={`flex items-center px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                                  activeThumbnailType === 'video'
+                                    ? 'bg-white/90 text-gray-900 shadow-sm'
+                                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                                }`}
+                              >
+                                <Video size={12} className="mr-1" />
+                                Video
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div
+                        className="inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl relative w-full h-[400px] bg-cover bg-center"
+                        style={{
+                          backgroundImage: `url('../empty_thumbnail.png')`,
+                          backgroundSize: 'auto',
+                        }}
+                      ></div>
+                    );
+                  }
+                })()}
+
+                {(() => {
+                  const cleanCourseUuid = course.course_uuid?.replace('course_', '');
+                  const run = trailData?.runs?.find(
+                    (run: any) => {
+                      const cleanRunCourseUuid = run.course?.course_uuid?.replace('course_', '');
+                      return cleanRunCourseUuid === cleanCourseUuid;
+                    }
+                  );
+                  return run;
+                })() && (
                   <ActivityIndicators
                     course_uuid={props.course.course_uuid}
                     orgslug={orgslug}
@@ -178,7 +288,7 @@ const CourseClient = (props: any) => {
 
               <div className='course_metadata_right w-full md:w-1/4 space-y-4'>
                 {/* Actions Box */}
-                <CoursesActions courseuuid={courseuuid} orgslug={orgslug} course={course} />
+                <CoursesActions courseuuid={courseuuid} orgslug={orgslug} course={course} trailData={trailData} />
                 
                 {/* Authors & Updates Box */}
                 <div className="bg-white shadow-md shadow-gray-300/25 outline outline-1 outline-neutral-200/40 rounded-lg overflow-hidden p-4">
@@ -235,30 +345,41 @@ const CourseClient = (props: any) => {
             <div className="w-full my-5 mb-10">
               <h2 className="py-5 text-xl md:text-2xl font-bold">Course Lessons</h2>
               <div className="bg-white shadow-md shadow-gray-300/25 outline outline-1 outline-neutral-200/40 rounded-lg overflow-hidden">
-                {course.chapters.map((chapter: any) => {
-                  const isExpanded = expandedChapters[chapter.chapter_uuid] ?? true; // Default to expanded
+                {course.chapters.map((chapter: any, idx: number) => {
+                  const isExpanded = expandedChapters[chapter.chapter_uuid] ?? (idx === 0); // Default to expanded for first chapter
                   return (
                     <div key={chapter.chapter_uuid || `chapter-${chapter.name}`} className="">
                       <div 
-                        className="flex text-lg py-4 px-4 outline outline-1 outline-neutral-200/40 font-bold bg-neutral-50 text-neutral-600 items-center cursor-pointer hover:bg-neutral-100 transition-colors"
+                        className="flex items-start py-4 px-4 outline outline-1 outline-neutral-200/40 font-bold bg-neutral-50 text-neutral-600 cursor-pointer hover:bg-neutral-100 transition-colors"
                         onClick={() => setExpandedChapters(prev => ({
                           ...prev,
                           [chapter.chapter_uuid]: !isExpanded
                         }))}
                       >
-                        <h3 className="grow mr-3 break-words">{chapter.name}</h3>
-                        <div className="flex items-center space-x-3">
-                          <p className="text-sm font-normal text-neutral-400 px-3 py-[2px] outline-1 outline outline-neutral-200 rounded-full whitespace-nowrap shrink-0">
-                            {chapter.activities.length} Activities
-                          </p>
+                        {/* Chevron on the far left, vertically centered with the title */}
+                        <div className="flex flex-col justify-center mr-3 pt-1">
                           <svg 
-                            className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                            className={`w-5 h-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
                             fill="none" 
                             stroke="currentColor" 
                             viewBox="0 0 24 24"
                           >
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
+                        </div>
+                        {/* Title and badge column */}
+                        <div className="flex flex-col items-start w-full">
+                          <div className="flex items-center flex-wrap mb-1 w-full min-w-0">
+                            {/* Numbered badge */}
+                            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 text-xs font-semibold mr-2 border border-neutral-300 flex-shrink-0">
+                              {idx + 1}
+                            </span>
+                            <h3 className="text-lg font-bold leading-tight truncate min-w-0 sm:text-base md:text-lg" style={{lineHeight: '1.2'}}>{chapter.name}</h3>
+                          </div>
+                          <div className="flex items-center space-x-1 text-sm text-neutral-400 font-normal">
+                            <Layers size={16} className="mr-1" />
+                            <span>{chapter.activities.length} Activities</span>
+                          </div>
                         </div>
                       </div>
                       <div className={`transition-all duration-200 ${isExpanded ? 'block' : 'hidden'}`}>
@@ -329,10 +450,9 @@ const CourseClient = (props: any) => {
             </div>
           </GeneralWrapperStyled>
           
+          {/* Mobile Actions Box */}
           {isMobile && (
-            <div className="fixed bottom-0 left-0 right-0  p-4 z-50">
-              <CourseActionsMobile courseuuid={courseuuid} orgslug={orgslug} course={course} />
-            </div>
+            <CourseActionsMobile courseuuid={courseuuid} orgslug={orgslug} course={course} trailData={trailData} />
           )}
         </>
       )}
