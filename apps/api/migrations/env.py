@@ -59,6 +59,23 @@ target_metadata = SQLModel.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+def get_url():
+    """Get database URL from environment variable or config"""
+    # First, try to get from command line (-x parameter)
+    url = config.get_main_option("sqlalchemy.url")
+    
+    # If not found or empty, try environment variables
+    if not url:
+        url = os.getenv("DATABASE_URL")
+    
+    if not url:
+        url = os.getenv("LEARNHOUSE_SQL_CONNECTION_STRING")
+    
+    if not url:
+        raise ValueError("No database URL found. Set DATABASE_URL or LEARNHOUSE_SQL_CONNECTION_STRING environment variable")
+    
+    return url
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -72,7 +89,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
+    url = get_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -91,6 +108,10 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    # Set the URL from environment variable
+    url = get_url()
+    config.set_main_option("sqlalchemy.url", url)
+    
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
