@@ -11,22 +11,16 @@ class CookieConfig(BaseModel):
 
 class GeneralConfig(BaseModel):
     development_mode: bool
-    install_mode: bool
+    logfire_enabled: bool
 
 
 class SecurityConfig(BaseModel):
     auth_jwt_secret_key: str
 
 
-class ChromaDBConfig(BaseModel):
-    isSeparateDatabaseEnabled: bool | None 
-    db_host: str | None 
-
-
 class AIConfig(BaseModel):
     openai_api_key: str | None
     is_ai_enabled: bool | None
-    chromadb_config: ChromaDBConfig | None
 
 
 class S3ApiConfig(BaseModel):
@@ -100,22 +94,30 @@ def get_learnhouse_config() -> LearnHouseConfig:
     # Load the YAML file
     with open(yaml_path, "r") as f:
         yaml_config = yaml.safe_load(f)
+    
+    # Ensure yaml_config is not None (defensive programming)
+    if yaml_config is None:
+        yaml_config = {}
 
     # General Config
 
-    # Development Mode & Install Mode
-    env_development_mode = eval(os.environ.get("LEARNHOUSE_DEVELOPMENT_MODE", "None"))
+    # Development Mode
+    env_development_mode_str = os.environ.get("LEARNHOUSE_DEVELOPMENT_MODE", "None")
+    if env_development_mode_str != "None":
+        env_development_mode = env_development_mode_str.lower() in ("true", "1", "yes")
+    else:
+        env_development_mode = None
     development_mode = (
         env_development_mode
         if env_development_mode is not None
         else yaml_config.get("general", {}).get("development_mode")
     )
 
-    env_install_mode = os.environ.get("LEARNHOUSE_INSTALL_MODE", "None")
-    install_mode = (
-        env_install_mode
-        if env_install_mode is not None
-        else yaml_config.get("general", {}).get("install_mode")
+    # Logfire config
+    env_logfire_enabled = os.environ.get("LEARNHOUSE_LOGFIRE_ENABLED", "None")
+    logfire_enabled = (
+        env_logfire_enabled.lower() == "true" if env_logfire_enabled != "None"
+        else yaml_config.get("general", {}).get("logfire_enabled", False)
     )
 
     # Security Config
@@ -204,22 +206,17 @@ def get_learnhouse_config() -> LearnHouseConfig:
 
     # AI Config
     env_openai_api_key = os.environ.get("LEARNHOUSE_OPENAI_API_KEY")
-    env_is_ai_enabled = os.environ.get("LEARNHOUSE_IS_AI_ENABLED")
-    env_chromadb_separate = os.environ.get("LEARNHOUSE_CHROMADB_SEPARATE")
-    env_chromadb_host = os.environ.get("LEARNHOUSE_CHROMADB_HOST")
-
+    env_is_ai_enabled_str = os.environ.get("LEARNHOUSE_IS_AI_ENABLED")
+    
     openai_api_key = env_openai_api_key or yaml_config.get("ai_config", {}).get(
         "openai_api_key"
     )
-    is_ai_enabled = env_is_ai_enabled or yaml_config.get("ai_config", {}).get(
-        "is_ai_enabled"
-    )
-    chromadb_separate = env_chromadb_separate or yaml_config.get("ai_config", {}).get(
-        "chromadb_config", {}
-    ).get("isSeparateDatabaseEnabled")
-    chromadb_host = env_chromadb_host or yaml_config.get("ai_config", {}).get(
-        "chromadb_config", {}
-    ).get("db_host")
+    
+    # Parse is_ai_enabled from env or yaml
+    if env_is_ai_enabled_str:
+        is_ai_enabled = env_is_ai_enabled_str.lower() in ("true", "1", "yes")
+    else:
+        is_ai_enabled = yaml_config.get("ai_config", {}).get("is_ai_enabled", False)
 
     # Redis config
     env_redis_connection_string = os.environ.get("LEARNHOUSE_REDIS_CONNECTION_STRING")
@@ -235,7 +232,7 @@ def get_learnhouse_config() -> LearnHouseConfig:
     )
     system_email_address = env_system_email_address or yaml_config.get(
         "mailing_config", {}
-    ).get("system_email_adress")
+    ).get("system_email_address")
 
     # Payments config
     env_stripe_secret_key = os.environ.get("LEARNHOUSE_STRIPE_SECRET_KEY")
@@ -284,9 +281,6 @@ def get_learnhouse_config() -> LearnHouseConfig:
     ai_config = AIConfig(
         openai_api_key=openai_api_key,
         is_ai_enabled=bool(is_ai_enabled),
-        chromadb_config=ChromaDBConfig(
-            isSeparateDatabaseEnabled=bool(chromadb_separate), db_host=chromadb_host
-        ),
     )
 
     # Create LearnHouseConfig object
@@ -295,7 +289,8 @@ def get_learnhouse_config() -> LearnHouseConfig:
         site_description=site_description,
         contact_email=contact_email,
         general_config=GeneralConfig(
-            development_mode=bool(development_mode), install_mode=bool(install_mode)
+            development_mode=bool(development_mode), 
+            logfire_enabled=bool(logfire_enabled)
         ),
         hosting_config=hosting_config,
         database_config=database_config,

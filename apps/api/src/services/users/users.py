@@ -103,7 +103,7 @@ async def create_user(
     user_organization = UserOrganization(
         user_id=user.id if user.id else 0,
         org_id=int(org_id),
-        role_id=3,
+        role_id=4,
         creation_date=str(datetime.now()),
         update_date=str(datetime.now()),
     )
@@ -311,20 +311,15 @@ async def update_user_avatar(
     # RBAC check
     await rbac_check(request, current_user, "update", user.user_uuid, db_session)
 
-    # Upload thumbnail
+    # Upload avatar with security validation
     if avatar_file and avatar_file.filename:
-        name_in_disk = (
-            f"{user.user_uuid}_avatar_{uuid4()}.{avatar_file.filename.split('.')[-1]}"
-        )
-        await upload_avatar(avatar_file, name_in_disk, user.user_uuid)
-
-        # Update course
-        if name_in_disk:
+        try:
+            name_in_disk = await upload_avatar(avatar_file, user.user_uuid)
             user.avatar_image = name_in_disk
-        else:
+        except Exception as e:
             raise HTTPException(
-                status_code=500,
-                detail="Issue with Avatar upload",
+                status_code=400,
+                detail=f"Avatar upload failed: {str(e)}",
             )
 
     # Update user in database

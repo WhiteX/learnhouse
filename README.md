@@ -8,7 +8,7 @@ LearnHouse is an open source platform that makes it easy for anyone to provide w
 
 ## Progress
 
-🚧 LearnHouse is still on early development (alpha), as we reach stability we will release a stable version and add more features.
+🚧 LearnHouse is still on development (beta), as we reach stability we will release a stable version and add more features.
 
 ## Roadmap
 
@@ -80,7 +80,6 @@ LearnHouse uses a number of open source projects to work properly:
 - **YJS** - Shared data types for building collaborative software
 - **PostgreSQL** - SQL Database
 - **Redis** - In-Memory Database
-- **LangChain** - LangChain is a framework for developing applications powered by language models
 - **React** - duh
 
 ## LearnHouse University

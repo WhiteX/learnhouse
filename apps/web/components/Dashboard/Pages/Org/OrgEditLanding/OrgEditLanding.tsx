@@ -1,7 +1,7 @@
 'use client'
 import React from 'react'
-import { LandingObject, LandingSection, LandingHeroSection, LandingTextAndImageSection, LandingLogos, LandingPeople, LandingBackground, LandingButton, LandingHeading, LandingImage, LandingFeaturedCourses } from './landing_types'
-import { Plus, Eye, ArrowUpDown, Trash2, GripVertical, LayoutTemplate, ImageIcon, Users, Award, ArrowRight, Edit, Link, Upload, Save, BookOpen, TextIcon } from 'lucide-react'
+import { LandingObject, LandingSection, LandingHeroSection, LandingTextAndImageSection, LandingLogos, LandingPeople, LandingBackground, LandingButton, LandingImage, LandingFeaturedCourses } from './landing_types'
+import { Plus, Trash2, GripVertical, LayoutTemplate, ImageIcon, Users, Award, Edit, Link, Upload, Save, BookOpen, TextIcon } from 'lucide-react'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import { Input } from "@components/ui/input"
 import { Textarea } from "@components/ui/textarea"
@@ -866,7 +866,7 @@ const HeroSectionEditor: React.FC<{
                     <input
                       id="imageUpload"
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
                       onChange={handleImageUpload}
                       className="hidden"
                     />
@@ -1131,6 +1131,16 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUploaded, classNam
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Validate file using reusable utility
+    const { validateFile } = await import('@/lib/file-validation')
+    const validation = validateFile(file, ['image'])
+    
+    if (!validation.valid) {
+      toast.error(validation.error!)
+      e.target.value = '' // Clear the input
+      return
+    }
+
     setIsUploading(true)
     try {
       const response = await uploadLandingContent(org.id, file, access_token)
@@ -1163,7 +1173,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUploaded, classNam
       <input
         id={inputId}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/gif"
         onChange={handleFileChange}
         className="hidden"
       />
@@ -1559,7 +1569,7 @@ const FeaturedCoursesEditor: React.FC<{
                     <div className="flex items-center space-x-3">
                       <div className="w-12 h-12 bg-gray-100 rounded-md overflow-hidden">
                         {course.course_thumbnail && (
-                          // eslint-disable-next-line @next/next/no-img-element
+                           
                           <img 
                             src={course.course_thumbnail} 
                             alt={course.name}

@@ -6,7 +6,7 @@ contact_email: hi@learnhouse.app
 
 general:
   development_mode: true
-  install_mode: true
+  logfire_enabled: false
 
 security:
   auth_jwt_secret_key: secret
@@ -29,7 +29,7 @@ hosting_config:
 
 mailing_config:
   resend_api_key: ""
-  system_email_adress: ""
+  system_email_address: ""
 
 database_config:
   sql_connection_string: postgresql://learnhouse:learnhouse@localhost:5432/learnhouse
@@ -45,6 +45,5 @@ payments_config:
     stripe_client_id: ""
 
 ai_config:
-  chromadb_config:
-    isSeparateDatabaseEnabled: True
-    db_host: "localhost"
+  openai_api_key: ""
+  is_ai_enabled: false

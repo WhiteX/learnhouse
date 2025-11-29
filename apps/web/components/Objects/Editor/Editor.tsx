@@ -25,7 +25,7 @@ import { Eye, Monitor } from 'lucide-react'
 import MathEquationBlock from './Extensions/MathEquation/MathEquationBlock'
 import PDFBlock from './Extensions/PDF/PDFBlock'
 import QuizBlock from './Extensions/Quiz/QuizBlock'
-import Table from '@tiptap/extension-table'
+import { Table } from '@tiptap/extension-table'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
 import TableRow from '@tiptap/extension-table-row'
@@ -33,7 +33,6 @@ import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip'
 import Link from 'next/link'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { getLinkExtension } from './EditorConf'
-import { Link as LinkExtension } from '@tiptap/extension-link'
 import WebPreview from './Extensions/WebPreview/WebPreview'
 
 // Lowlight
@@ -53,6 +52,8 @@ import { getUriWithOrg } from '@services/config/config'
 import EmbedObjects from './Extensions/EmbedObjects/EmbedObjects'
 import Badges from './Extensions/Badges/Badges'
 import Buttons from './Extensions/Buttons/Buttons'
+import Flipcard from './Extensions/Flipcard/Flipcard'
+import Scenarios from './Extensions/Scenarios/Scenarios'
 import { useMediaQuery } from 'usehooks-ts'
 import UserAvatar from '../UserAvatar'
 import UserBlock from './Extensions/Users/UserBlock'
@@ -63,7 +64,7 @@ interface Editor {
   course: any
   org: any
   session: any
-  setContent: (content: string) => void
+  setContent: (content: any) => void
 }
 
 function Editor(props: Editor) {
@@ -166,6 +167,14 @@ function Editor(props: Editor) {
       TableCell,
       getLinkExtension(),
       WebPreview.configure({
+        editable: true,
+        activity: props.activity,
+      }),
+      Flipcard.configure({
+        editable: true,
+        activity: props.activity,
+      }),
+      Scenarios.configure({
         editable: true,
         activity: props.activity,
       }),

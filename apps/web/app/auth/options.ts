@@ -4,7 +4,7 @@ import {
   loginAndGetToken,
   loginWithOAuthToken,
 } from '@services/auth/auth'
-import { LEARNHOUSE_TOP_DOMAIN, getUriWithOrg } from '@services/config/config'
+import { getLEARNHOUSE_TOP_DOMAIN_VAL, getUriWithOrg } from '@services/config/config'
 import { getResponseMetadata } from '@services/utils/ts/requests'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
@@ -19,7 +19,7 @@ declare global {
   };
 }
 
-export const isDevEnv = LEARNHOUSE_TOP_DOMAIN == 'localhost' ? true : false
+export const isDevEnv = getLEARNHOUSE_TOP_DOMAIN_VAL() == 'localhost' ? true : false
 
 export const nextAuthOptions = {
   debug: true,
@@ -67,8 +67,8 @@ export const nextAuthOptions = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        // When working on localhost or with different domains, use the current domain instead of a shared top domain
-        domain: process.env.LEARNHOUSE_COOKIE_DOMAIN || (LEARNHOUSE_TOP_DOMAIN === 'localhost' ? undefined : `.${LEARNHOUSE_TOP_DOMAIN}`),
+        // When working on localhost, the cookie domain must be omitted entirely (https://stackoverflow.com/a/1188145)
+        domain: `.${getLEARNHOUSE_TOP_DOMAIN_VAL()}`,
         secure: !isDevEnv,
       },
     },
@@ -91,12 +91,12 @@ export const nextAuthOptions = {
         token.user = userFromOAuth.data;
       }
 
-      // Refresh token only if it's close to expiring (5 minutes before expiry)
+      // Refresh token only if it's close to expiring (1 minute before expiry)
       if (token?.user?.tokens) {
         const tokenExpiry = token.user.tokens.expiry || 0;
-        const fiveMinutes = 5 * 60 * 1000;
+        const oneMinute = 1 * 60 * 1000;
         
-        if (Date.now() + fiveMinutes >= tokenExpiry) {
+        if (Date.now() + oneMinute >= tokenExpiry) {
           const RefreshedToken = await getNewAccessTokenUsingRefreshTokenServer(
             token?.user?.tokens?.refresh_token
           );
@@ -118,11 +118,11 @@ export const nextAuthOptions = {
     async session({ session, token }: any) {
       // Include user information in the session
       if (token.user) {
-        // Cache the session for 5 minutes to avoid frequent API calls
+        // Cache the session for 1 minute to refresh every minute
         const cacheKey = `user_session_${token.user.tokens.access_token}`;
         let cachedSession = global.sessionCache?.[cacheKey];
         
-        if (cachedSession && Date.now() - cachedSession.timestamp < 5 * 60 * 1000) {
+        if (cachedSession && Date.now() - cachedSession.timestamp < 1 * 60 * 1000) {
           return cachedSession.data;
         }
 

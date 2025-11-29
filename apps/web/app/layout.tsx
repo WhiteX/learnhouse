@@ -21,8 +21,10 @@ export default function RootLayout({
     <html className="" lang="en">
       <head />
       <body>
+        {/* Inject runtime configuration for client-side access */}
+        <Script src="/runtime-config.js" strategy="beforeInteractive" />
         {isDevEnv ? '' : <Script data-website-id="a1af6d7a-9286-4a1f-8385-ddad2a29fcbb" src="/umami/script.js" />}
-        <SessionProvider key="session-provider">
+        <SessionProvider key="session-provider" refetchInterval={60000}>
           <LHSessionProvider>
             <StyledComponentsRegistry>
               <motion.main
@@ -30,7 +32,7 @@ export default function RootLayout({
                 initial="hidden" // Set the initial state to variants.hidden
                 animate="enter" // Animated state to variants.enter
                 exit="exit" // Exit state (used later) to variants.exit
-                transition={{ type: 'linear' }} // Set the transition to linear
+                transition={{ type: 'tween' }} // Set the transition to tween
               >
                 {children}
               </motion.main>

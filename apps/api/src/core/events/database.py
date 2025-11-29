@@ -1,10 +1,10 @@
 import logging
-import logfire
 import os
 import importlib
 from config.config import get_learnhouse_config
 from fastapi import FastAPI
 from sqlmodel import SQLModel, Session, create_engine
+from sqlalchemy import event
 
 def import_all_models():
     base_dir = 'src/db'
@@ -32,24 +32,53 @@ def import_all_models():
 import_all_models()
 
 learnhouse_config = get_learnhouse_config()
-engine = create_engine(
-    learnhouse_config.database_config.sql_connection_string,  # type: ignore
-    echo=False, 
-    pool_pre_ping=True,  # type: ignore
-    pool_size=5,  
-    max_overflow=0,
-    pool_recycle=300,  # Recycle connections after 5 minutes
-    pool_timeout=30
-)
 
-# Create all tables after importing all models
-SQLModel.metadata.create_all(engine)
-logfire.instrument_sqlalchemy(engine=engine)
+# Check if we're in test mode
+is_testing = os.getenv("TESTING", "false").lower() == "true"
+
+if is_testing:
+    # Use SQLite for tests
+    engine = create_engine(
+        "sqlite:///:memory:",
+        echo=False,
+        connect_args={"check_same_thread": False}
+    )
+else:
+    # Use configured database for production/development
+    engine = create_engine(
+        learnhouse_config.database_config.sql_connection_string,  # type: ignore
+        echo=False, 
+        pool_pre_ping=True,  # type: ignore
+        pool_size=20,  # Increased from 5 to handle more concurrent requests
+        max_overflow=10,  # Allow 10 additional connections beyond pool_size
+        pool_recycle=300,  # Recycle connections after 5 minutes
+        pool_timeout=30
+    )
+    
+    # Add connection pool monitoring for debugging
+    @event.listens_for(engine, "connect")
+    def receive_connect(dbapi_connection, connection_record):
+        logging.debug("Database connection established")
+    
+    @event.listens_for(engine, "checkout")
+    def receive_checkout(dbapi_connection, connection_record, connection_proxy):
+        logging.debug("Connection checked out from pool")
+    
+    @event.listens_for(engine, "checkin")
+    def receive_checkin(dbapi_connection, connection_record):
+        logging.debug("Connection returned to pool")
+
+# Only create tables if not in test mode (tests will handle this themselves)
+if not is_testing:
+    SQLModel.metadata.create_all(engine)
+    # Note: logfire instrumentation will be handled in app.py after configuration
 
 async def connect_to_db(app: FastAPI):
     app.db_engine = engine  # type: ignore
     logging.info("LearnHouse database has been started.")
-    SQLModel.metadata.create_all(engine)
+    # Only create tables if not in test mode
+    if not is_testing:
+        SQLModel.metadata.create_all(engine)
 
 def get_db_session():
     with Session(engine) as session:
