@@ -15,19 +15,20 @@ RUN curl -fsSL https://deb.nodesource.com/setup_21.x | bash - \
 # Frontend Build
 FROM base AS builder
 
-WORKDIR /app/web
+WORKDIR /app
 
-# Install dependencies based on the preferred package manager
-COPY ./apps/web/package.json ./apps/web/pnpm-lock.yaml* ./
-COPY ./apps/web /app/web
+# Copy workspace configuration files first
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# Copy the web app
+COPY ./apps/web ./apps/web
+
 # Remove any environment files that might interfere
-RUN rm -f .env* 
-# Omit --production flag for TypeScript devDependencies
-RUN \
-  if [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
-  else echo "Warning: Lockfile not found. It is recommended to commit lockfiles to version control." && npm install; \
-  fi
+RUN rm -f ./apps/web/.env* 
+
+# Enable pnpm and install dependencies
+RUN corepack enable pnpm && \
+    pnpm i --frozen-lockfile --filter=learnhouse...
 
 # Environment variables must be present at build time
 ARG NEXT_PUBLIC_LEARNHOUSE_API_URL
@@ -49,11 +50,8 @@ ENV NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN=${NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN}
 ENV NEXT_TELEMETRY_DISABLED 1
 
 # Build Next.js based on the preferred package manager
-RUN \
-  if [ -f pnpm-lock.yaml ]; then pnpm build; \
-  elif [ -f package-lock.json ]; then npm run build; \
-  else npm run build; \
-  fi
+WORKDIR /app/apps/web
+RUN pnpm build
 
 # Final image
 FROM base AS runner
@@ -62,12 +60,12 @@ RUN addgroup --system --gid 1001 system \
     && mkdir .next \
     && chown app:system .next
 
-COPY --from=builder /app/web/public ./app/web/public
+COPY --from=builder /app/apps/web/public ./app/web/public
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing  
-COPY --from=builder --chown=app:system /app/web/.next/standalone ./app/web/
-COPY --from=builder --chown=app:system /app/web/.next/static ./app/web/.next/static
+COPY --from=builder --chown=app:system /app/apps/web/.next/standalone ./app/web/
+COPY --from=builder --chown=app:system /app/apps/web/.next/static ./app/web/.next/static
 
 # Environment variables must be redefined at run time
 ARG NEXT_PUBLIC_LEARNHOUSE_API_URL
