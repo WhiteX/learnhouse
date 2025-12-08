@@ -23,6 +23,9 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # Copy the web app
 COPY ./apps/web ./apps/web
 
+# Remove nested lockfile to use workspace root lockfile only
+RUN rm -f ./apps/web/pnpm-lock.yaml
+
 # Remove any environment files that might interfere
 RUN rm -f ./apps/web/.env* 
 
