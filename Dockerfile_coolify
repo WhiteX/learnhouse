@@ -26,14 +26,6 @@ COPY ./apps/web ./apps/web
 # Remove any environment files that might interfere
 RUN rm -f ./apps/web/.env* 
 
-# Debug: Show lockfile info to diagnose the issue
-RUN echo "=== DEBUG: Lockfile check ===" && \
-    ls -lh pnpm-lock.yaml apps/web/pnpm-lock.yaml && \
-    echo "=== Root lockfile first 20 lines ===" && \
-    head -20 pnpm-lock.yaml && \
-    echo "=== apps/web lockfile first 20 lines ===" && \
-    head -20 apps/web/pnpm-lock.yaml
-
 # Enable pnpm and install dependencies
 RUN corepack enable pnpm && \
     pnpm i --frozen-lockfile --filter=learnhouse...
@@ -59,7 +51,11 @@ ENV NEXT_TELEMETRY_DISABLED 1
 
 # Build Next.js based on the preferred package manager
 WORKDIR /app/apps/web
-RUN pnpm build
+RUN echo "=== Starting Next.js build ===" && \
+    echo "Environment variables:" && \
+    env | grep -E "NEXT_PUBLIC|NODE_ENV" || true && \
+    echo "=== Running pnpm build ===" && \
+    pnpm build
 
 # Final image
 FROM base AS runner
