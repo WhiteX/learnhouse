@@ -14,16 +14,33 @@ if [ -n "$LEARNHOUSE_SQL_CONNECTION_STRING" ]; then
     fi
 fi
 
-# Start the services
-# Use server-wrapper.js for runtime environment variable injection
-pm2 start server-wrapper.js --cwd /app/web --name learnhouse-web > /dev/null 2>&1
-pm2 start uv --cwd /app/api --name learnhouse-api -- run app.py
+echo "=== Starting LearnHouse Services ==="
+
+# Set PORT for Next.js frontend (override if needed)
+export PORT=${PORT:-8000}
+export HOSTNAME=${HOSTNAME:-0.0.0.0}
+
+# Start Next.js frontend with server-wrapper for runtime env injection
+echo "Starting Next.js frontend on port $PORT..."
+cd /app/web
+pm2 start server-wrapper.js --name learnhouse-web --log /var/log/pm2-web.log
+
+# Start Python backend
+echo "Starting Python backend on port ${LEARNHOUSE_PORT:-9000}..."
+cd /app/api
+pm2 start uv --name learnhouse-api -- run app.py --log /var/log/pm2-api.log
+
+# Wait a moment for services to initialize
+sleep 2
 
 # Check if the services are running and log the status
+echo "=== PM2 Service Status ==="
 pm2 status
 
 # Start Nginx in the background
+echo "Starting Nginx on port 80..."
 nginx -g 'daemon off;' &
 
 # Tail PM2 logs with proper formatting
+echo "=== Following application logs ==="
 pm2 logs --raw
