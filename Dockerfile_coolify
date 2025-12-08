@@ -59,17 +59,26 @@ RUN echo "=== Starting Next.js build ===" && \
 
 # Final image
 FROM base AS runner
-RUN addgroup --system --gid 1001 system \
-    && adduser --system --uid 1001 app \
+
+# Set production environment
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs \
     && mkdir .next \
-    && chown app:system .next
+    && chown nextjs:nodejs .next
 
 COPY --from=builder /app/apps/web/public ./app/web/public
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing  
-COPY --from=builder --chown=app:system /app/apps/web/.next/standalone ./app/web/
-COPY --from=builder --chown=app:system /app/apps/web/.next/static ./app/web/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./app/web/
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./app/web/.next/static
+
+# Copy server wrapper for runtime environment variable injection
+COPY --chown=nextjs:nodejs apps/web/server-wrapper.js ./app/web/
+RUN chmod +x ./app/web/server-wrapper.js
 
 # Environment variables must be redefined at run time
 ARG NEXT_PUBLIC_LEARNHOUSE_API_URL
@@ -98,6 +107,9 @@ RUN pip install --upgrade pip && \
     pip install uvicorn
 
 COPY ./apps/api ./
+
+# Install curl and netcat for health checks and service waiting
+RUN apt-get update && apt-get install -y curl netcat-openbsd && rm -rf /var/lib/apt/lists/*
 
 # Run the backend
 WORKDIR /app
