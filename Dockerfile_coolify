@@ -26,6 +26,14 @@ COPY ./apps/web ./apps/web
 # Remove any environment files that might interfere
 RUN rm -f ./apps/web/.env* 
 
+# Debug: Show lockfile info to diagnose the issue
+RUN echo "=== DEBUG: Lockfile check ===" && \
+    ls -lh pnpm-lock.yaml apps/web/pnpm-lock.yaml && \
+    echo "=== Root lockfile first 20 lines ===" && \
+    head -20 pnpm-lock.yaml && \
+    echo "=== apps/web lockfile first 20 lines ===" && \
+    head -20 apps/web/pnpm-lock.yaml
+
 # Enable pnpm and install dependencies
 RUN corepack enable pnpm && \
     pnpm i --frozen-lockfile --filter=learnhouse...
