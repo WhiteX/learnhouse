@@ -17,8 +17,8 @@ FROM base AS builder
 
 WORKDIR /app
 
-# Copy workspace configuration files first
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Copy workspace configuration files first (including .npmrc for pnpm settings)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 
 # Copy the web app (includes apps/web/pnpm-lock.yaml)
 COPY ./apps/web ./apps/web
