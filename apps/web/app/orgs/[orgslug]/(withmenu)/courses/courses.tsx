@@ -20,7 +20,7 @@ function Courses(props: CourseProps) {
   const orgslug = props.orgslug
   const courses = props.courses
   const searchParams = useSearchParams()
-  const isCreatingCourse = searchParams.get('new') ? true : false
+  const isCreatingCourse = searchParams?.get('new') ? true : false
   const [newCourseModal, setNewCourseModal] = React.useState(isCreatingCourse)
   const isUserAdmin = useAdminStatus() as any
 
@@ -86,11 +86,9 @@ function Courses(props: CourseProps) {
                     No courses yet
                   </h1>
                   <p className="text-md text-gray-400">
-                    {isUserAdmin ? (
-                      "Create a course to add content"
-                    ) : (
-                      "No courses available yet"
-                    )}
+                    {isUserAdmin
+                      ? 'Create a course to add content'
+                      : 'No courses available yet'}
                   </p>
                   {isUserAdmin && (
                     <div className="mt-4">
