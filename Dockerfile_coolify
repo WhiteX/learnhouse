@@ -55,7 +55,11 @@ RUN echo "=== Starting Next.js build ===" && \
     echo "Environment variables:" && \
     env | grep -E "NEXT_PUBLIC|NODE_ENV" || true && \
     echo "=== Running pnpm build ===" && \
-    pnpm build
+    pnpm build && \
+    echo "=== Standalone output structure ===" && \
+    ls -la .next/standalone/ && \
+    echo "=== Looking for server.js ===" && \
+    find .next/standalone -name "server.js" -type f
 
 # Final image
 FROM base AS runner
@@ -80,7 +84,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/sta
 
 # Copy server wrapper for runtime environment variable injection
 COPY --chown=nextjs:nodejs apps/web/server-wrapper.js ./
-RUN chmod +x server-wrapper.js
+RUN chmod +x server-wrapper.js && \
+    echo "=== Files in /app/web ===" && \
+    ls -la /app/web/ && \
+    echo "=== Checking for server.js ===" && \
+    ls -la /app/web/server.js 2>/dev/null || echo "server.js not found in /app/web/" && \
+    echo "=== Finding all server.js files ===" && \
+    find /app/web -name "server.js" -type f 2>/dev/null || echo "No server.js found"
 
 # Environment variables must be redefined at run time
 ARG NEXT_PUBLIC_LEARNHOUSE_API_URL
