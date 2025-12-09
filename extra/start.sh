@@ -22,7 +22,7 @@ export HOSTNAME=${HOSTNAME:-0.0.0.0}
 
 # Start Next.js frontend with server-wrapper for runtime env injection
 echo "Starting Next.js frontend on port $PORT..."
-cd /app/web
+cd /app/web/apps/web
 pm2 start server-wrapper.js --name learnhouse-web --log /var/log/pm2-web.log
 
 # Start Python backend
