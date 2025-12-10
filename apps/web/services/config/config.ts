@@ -1,39 +1,39 @@
 // Runtime configuration cache
-let runtimeConfig: Record<string, string> | null = null;
+let runtimeConfig: Record<string, string> | null = null
 
 // Lazy load runtime configuration
 function loadRuntimeConfig(): Record<string, string> {
   if (runtimeConfig !== null) {
-    return runtimeConfig;
+    return runtimeConfig
   }
 
-  runtimeConfig = {};
+  runtimeConfig = {}
 
   if (typeof window !== 'undefined') {
     // Client-side: read from window.__RUNTIME_CONFIG__ if available
     if ((window as any).__RUNTIME_CONFIG__) {
-      runtimeConfig = (window as any).__RUNTIME_CONFIG__;
+      runtimeConfig = (window as any).__RUNTIME_CONFIG__
     }
   } else {
     // Server-side: try to read from runtime-config.json
     // Try multiple possible paths for standalone mode
     try {
-      const fs = require('fs');
-      const path = require('path');
-      
+      const fs = require('fs')
+      const path = require('path')
+
       // In standalone mode, runtime-config.json is in the same directory as server.js
       // Try common possible locations relative to the current working directory and module
       const possiblePaths = [
         path.join(process.cwd(), 'runtime-config.json'),
         path.join(__dirname || process.cwd(), 'runtime-config.json'),
         path.join(__dirname || process.cwd(), '..', 'runtime-config.json'),
-      ];
-      
+      ]
+
       for (const configPath of possiblePaths) {
         try {
           if (fs.existsSync(configPath)) {
-            runtimeConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-            break;
+            runtimeConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+            break
           }
         } catch {
           // Continue to next path
@@ -44,22 +44,39 @@ function loadRuntimeConfig(): Record<string, string> {
     }
   }
 
-  return runtimeConfig || {};
+  return runtimeConfig || {}
 }
 
 // Helper function to get config value with fallback
 export const getConfig = (key: string, defaultValue: string = ''): string => {
-  const config = loadRuntimeConfig();
-  return (config && config[key]) || process.env[key] || defaultValue;
-};
+  const config = loadRuntimeConfig()
+  return (config && config[key]) || process.env[key] || defaultValue
+}
 
 // Dynamic config getters - these are functions to ensure runtime values are used
 const getLEARNHOUSE_HTTP_PROTOCOL = () =>
-  (getConfig('NEXT_PUBLIC_LEARNHOUSE_HTTPS') === 'true') ? 'https://' : 'http://'
-const getLEARNHOUSE_API_URL = () => getConfig('NEXT_PUBLIC_LEARNHOUSE_API_URL', 'http://localhost/api/v1/')
-const getLEARNHOUSE_BACKEND_URL = () => getConfig('NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL', 'http://localhost/')
-const getLEARNHOUSE_DOMAIN = () => getConfig('NEXT_PUBLIC_LEARNHOUSE_DOMAIN', 'localhost')
-const getLEARNHOUSE_TOP_DOMAIN = () => getConfig('NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN', 'localhost')
+  getConfig('NEXT_PUBLIC_LEARNHOUSE_HTTPS') === 'true' ? 'https://' : 'http://'
+const getLEARNHOUSE_API_URL = () => {
+  // On client-side, use relative URL to avoid CORS issues
+  // The browser will automatically use the current origin
+  if (typeof window !== 'undefined') {
+    return '/api/v1/'
+  }
+  // On server-side (SSR), use the configured absolute URL
+  return getConfig('NEXT_PUBLIC_LEARNHOUSE_API_URL', 'http://localhost/api/v1/')
+}
+const getLEARNHOUSE_BACKEND_URL = () => {
+  // On client-side, use relative URL to avoid CORS issues
+  if (typeof window !== 'undefined') {
+    return '/'
+  }
+  // On server-side (SSR), use the configured absolute URL
+  return getConfig('NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL', 'http://localhost/')
+}
+const getLEARNHOUSE_DOMAIN = () =>
+  getConfig('NEXT_PUBLIC_LEARNHOUSE_DOMAIN', 'localhost')
+const getLEARNHOUSE_TOP_DOMAIN = () =>
+  getConfig('NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN', 'localhost')
 
 // Export getter functions for dynamic runtime configuration
 export const getLEARNHOUSE_HTTP_PROTOCOL_VAL = getLEARNHOUSE_HTTP_PROTOCOL
@@ -120,7 +137,3 @@ export const getOrgFromUri = () => {
 export const getDefaultOrg = () => {
   return getConfig('NEXT_PUBLIC_LEARNHOUSE_DEFAULT_ORG', 'default')
 }
-
-
-
-
