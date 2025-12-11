@@ -14,6 +14,15 @@ if [ -n "$LEARNHOUSE_SQL_CONNECTION_STRING" ]; then
     fi
 fi
 
+# Initialize database if needed
+echo "Initializing database..."
+cd /app/api
+# The install --short command uses environment variables:
+# LEARNHOUSE_INITIAL_ADMIN_EMAIL (defaults to admin@school.dev if not set)
+# LEARNHOUSE_INITIAL_ADMIN_PASSWORD (required)
+uv run python -m cli install --short 2>&1 | grep -v "LEARNHOUSE_INITIAL_ADMIN_PASSWORD" || echo "Database already initialized"
+cd /app
+
 # Start the services
 # Use server-wrapper.js for runtime environment variable injection
 pm2 start apps/web/server-wrapper.js --cwd /app/web --name learnhouse-web > /dev/null 2>&1
